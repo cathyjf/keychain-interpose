@@ -8,18 +8,7 @@ OBJECTS := $(MIGRATE_OBJECTS) $(DYLIB_OBJECTS)
 BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys keychain-interpose.dylib)
 IDENTITY = $(eval value := $(shell security find-identity -v -p codesigning | grep -o "[A-F0-9]\{25,\}"))$(value)
 GNUPGHOME = $(eval value := $(shell printf $$GNUPGHOME))$(value)
-define CODESIGN
-	@if ! codesign -d --verbose $(1) 2>&1 | grep -q "flags=0x10000(runtime)"; then \
-		echo "We need to sign" $(1) "with identity $(IDENTITY)."; \
-		echo "This should only be required in one of the following two cases: "; \
-		echo "    (1) This is your first time installing keychain-interpose for gpg-agent; or"; \
-		echo "    (2) You have updated gpg-agent or one of its components since you last signed it."; \
-		echo "If neither of these is true, something unexpected is happening, so you might"; \
-		echo "want to cancel this process and figure out what is going on. However, if one"; \
-		echo "of the two cases above applies, then it is normal that we need to sign this file."; \
-		codesign -f --options runtime $(2) -s "$(IDENTITY)" $(1); \
-	fi
-endef
+CODESIGN = @src/meta/codesign.sh $(1) "$(IDENTITY)" "$(2)"
 
 # Use Homebrew clang to compile if available. Otherwise, use Apple's clang.
 CXX = $(eval value := $(shell which "$$(brew --prefix)/opt/llvm/bin/clang++" || which c++))$(value)

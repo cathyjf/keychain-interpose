@@ -39,7 +39,7 @@ managed_keychain_item find_keychain_item(const std::string keygrip) {
     return managed_keychain_item{ item_ref };
 }
 
-bool add_key_to_keychain(const std::string keygrip, const std::string data) {
+auto add_key_to_keychain(const std::string keygrip, const auto data) {
     const auto status = SecKeychainAddGenericPassword(
         nullptr,
         KEYCHAIN_SERVICE_NAME.length(), KEYCHAIN_SERVICE_NAME.data(),
@@ -59,13 +59,21 @@ auto read_entire_file(const auto filename) {
     return buffer.str();
 }
 
-auto get_plural(const auto noun, const auto count) {
-    auto buffer = std::stringstream{};
-    buffer << count << ' ' << noun;
-    if (count > 1) {
+auto &operator<<(auto &buffer, const auto streamable) {
+    buffer << streamable.count << ' ' << streamable.noun;
+    if (streamable.count > 1) {
         buffer << 's';
     }
-    return buffer.str();
+    return buffer;
+}
+
+template <class T, class U>
+auto get_plural(const T noun, const U count) {
+    struct {
+        T noun;
+        U count;
+    } streamable{ noun, count };
+    return streamable;
 }
 
 } // anonymous namespace
@@ -77,8 +85,8 @@ int main() {
         return 1;
     }
     std::cout << "Private key directory: " << private_key_path << std::endl;
-    int successes = 0;
-    int failures = 0;
+    auto successes = 0;
+    auto failures = 0;
     for (auto entry : std::filesystem::directory_iterator(private_key_path)) {
         const auto keygrip = entry.path().filename();
         std::cout << "Found " << keygrip << "." << std::endl;

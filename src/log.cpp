@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cstdlib>
 #include <dlfcn.h>
 #include <filesystem>
 #include <fstream>
@@ -10,6 +11,8 @@
 
 namespace {
 
+constexpr auto DISABLE_LOGGING_ENV_VAR = "KEYCHAIN_INTERPOSE_DISABLE_LOGGING";
+
 std::filesystem::path getDylibPath() {
     auto info = Dl_info{};
     if (dladdr(reinterpret_cast<void *>(static_cast<void(*)(const char *)>(write_log_message)), &info)) {
@@ -18,7 +21,7 @@ std::filesystem::path getDylibPath() {
     return {};
 }
 
-} //anonymous namespace
+} // anonymous namespace
 
 void write_log_message(const std::string message) {
     write_log_message(message.c_str());
@@ -29,6 +32,9 @@ void write_log_message(const char *message) {
     const auto lock = std::scoped_lock{ mutex };
     static auto exeName = std::string{};
     static auto logStream = ([]() -> std::ofstream {
+        if (getenv(DISABLE_LOGGING_ENV_VAR) != nullptr) {
+            return {};
+        }
         const auto logPath = ([]() -> std::string {
             auto exePath = getDylibPath();
             if (exePath.empty()) [[unlikely]] {

@@ -44,13 +44,13 @@ clean :
 	rm $(OBJECTS) $(BINARIES) >/dev/null 2>&1 || true
 	rmdir $(OBJECT_DIR) $(BIN_DIR) >/dev/null 2>&1 || true
 
-sign-gpg-agent :
+sign-gpg-agent : src/meta/ggp-agent-entitlements.plist
 	$(call CODESIGN, "$(shell brew --prefix libgcrypt)/lib/libgcrypt.dylib")
 	$(call CODESIGN, "$(shell brew --prefix libassuan)/lib/libassuan.dylib")
 	$(call CODESIGN, "$(shell brew --prefix npth)/lib/libnpth.dylib")
 	$(call CODESIGN, "$(shell brew --prefix libgpg-error)/lib/libgpg-error.dylib")
 	$(call CODESIGN, "$(shell brew --prefix gettext)/lib/libintl.dylib")
-	$(call CODESIGN, "$(shell which gpg-agent)", --entitlements gpg-agent/entitlements.plist)
+	$(call CODESIGN, "$(shell which gpg-agent)", --entitlements $<)
 
 $(GNUPGHOME)/keychain-interpose.dylib : $(BIN_DIR)/keychain-interpose.dylib
 	install -m u=rw $< $@

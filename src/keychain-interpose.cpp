@@ -113,13 +113,13 @@ int my_gpgrt_fseek(gpgrt_stream_t any_stream, long int offset, int whence) {
     write_log_message("Seeking within stream: " + stream->keygrip);
     switch (whence) {
         case SEEK_SET:
-            stream->index = offset;
+            stream->index = std::max(0L, offset);
             return 0;
         case SEEK_CUR:
-            stream->index += offset;
+            stream->index = std::max(0L, stream->index + offset);
             return 0;
         case SEEK_END:
-            stream->index = stream->password_length - offset;
+            stream->index = std::max(0L, stream->password_length - offset);
             return 0;
         default:
             return 1;

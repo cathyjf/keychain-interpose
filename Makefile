@@ -1,6 +1,7 @@
 CPPFLAGS := -std=c++20 $(shell pkg-config --cflags gpg-error) -Wall
 LDFLAGS := -framework Security $(shell pkg-config --libs gpg-error)
 IDENTITY = $(eval value := $(shell security find-identity -v -p codesigning | grep -o "[A-F0-9]\{25,\}"))$(value)
+GNUPGHOME = $(eval value := $(shell printf $$GNUPGHOME))$(value)
 define CODESIGN
 	@if ! codesign -d --verbose $(1) 2>&1 | grep -q "flags=0x10000(runtime)"; then \
 		echo "We need to sign" $(1) "with identity $(IDENTITY)."; \
@@ -11,8 +12,6 @@ define CODESIGN
 		echo "want to cancel this process and figure out what is going on. However, if one"; \
 		echo "of the two cases above applies, then it is normal that we need to sign this file."; \
 		codesign -f --options runtime $(2) -s "$(IDENTITY)" $(1); \
-	else \
-		echo "The object" $(1) "appears to have a sufficient signature."; \
 	fi
 endef
 
@@ -33,12 +32,12 @@ sign-gpg-agent :
 	$(call CODESIGN, "$(shell brew --prefix gettext)/lib/libintl.dylib")
 	$(call CODESIGN, "$(shell which gpg-agent)", --entitlements gpg-agent/entitlements.plist)
 
-install-dylib : keychain-interpose.dylib
-	install -m u=rw $< $$GNUPGHOME/keychain-interpose.dylib
+$(GNUPGHOME)/keychain-interpose.dylib : keychain-interpose.dylib
+	install -m u=rw $< $@
 
-install-agent : agent.sh
-	install -m u=rwx $< $$GNUPGHOME/keychain-agent.sh
+$(GNUPGHOME)/keychain-agent.sh : agent.sh
+	install -m u=rwx $< $@
 
-install : install-dylib install-agent sign-gpg-agent
+install : $(GNUPGHOME)/keychain-interpose.dylib $(GNUPGHOME)/keychain-agent.sh sign-gpg-agent
 
 .PHONY : clean sign-gpg-agent install

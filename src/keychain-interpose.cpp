@@ -43,7 +43,7 @@ struct my_gpgrt_stream {
 
 std::unique_ptr<my_gpgrt_stream> get_key_from_keychain(const std::string keygrip) {
     auto stream = std::make_unique<my_gpgrt_stream>(keygrip);
-    char *password{};
+    auto password = (char *){};
     const auto status = SecKeychainFindGenericPassword(
         nullptr,                        // keychainOrArray
         KEYCHAIN_SERVICE_NAME.length(), // serviceNameLength

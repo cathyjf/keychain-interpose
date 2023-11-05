@@ -1,9 +1,10 @@
-CPPFLAGS := -std=c++20 -O3 -Wall -Werror
+CPPFLAGS := -std=c++20 -O3 -Wall -Werror $(shell pkg-config --cflags gpg-error)
 LDFLAGS := -framework Security
 OBJECT_DIR := objects
 BIN_DIR := bin
-DYLIB_OBJECTS := $(addprefix $(OBJECT_DIR)/, keychain-interpose.o log.o)
-OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o) $(DYLIB_OBJECTS)
+MIGRATE_OBJECTS = $(addprefix $(OBJECT_DIR)/, migrate-keys.o common.o)
+DYLIB_OBJECTS := $(addprefix $(OBJECT_DIR)/, keychain-interpose.o common.o log.o)
+OBJECTS := $(MIGRATE_OBJECTS) $(DYLIB_OBJECTS)
 BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys keychain-interpose.dylib)
 IDENTITY = $(eval value := $(shell security find-identity -v -p codesigning | grep -o "[A-F0-9]\{25,\}"))$(value)
 GNUPGHOME = $(eval value := $(shell printf $$GNUPGHOME))$(value)
@@ -26,11 +27,12 @@ $(BIN_DIR)/keychain-interpose.dylib : $(DYLIB_OBJECTS)
 	$(CXX) -dynamiclib $^ -o $@ $(CPPFLAGS) $(LDFLAGS) $(shell pkg-config --libs gpg-error)
 	$(call CODESIGN, $@)
 
-$(BIN_DIR)/migrate-keys : $(OBJECT_DIR)/migrate-keys.o
-	$(CXX) $^ -o $@ $(CPPFLAGS) $(LDFLAGS)
+$(BIN_DIR)/migrate-keys : $(MIGRATE_OBJECTS)
+	$(CXX) $^ -o $@ $(CPPFLAGS) $(LDFLAGS) -framework CoreFoundation
+	$(call CODESIGN, $@)
 
 $(OBJECT_DIR)/%.o : src/%.cpp
-	$(CXX) -c $^ -o $@ $(CPPFLAGS) $(shell pkg-config --cflags gpg-error)
+	$(CXX) -c $^ -o $@ $(CPPFLAGS)
 
 $(OBJECTS) : | $(OBJECT_DIR)
 $(BINARIES) : | $(BIN_DIR)
@@ -55,9 +57,12 @@ sign-gpg-agent : src/meta/ggp-agent-entitlements.plist
 $(GNUPGHOME)/keychain-interpose.dylib : $(BIN_DIR)/keychain-interpose.dylib
 	install -m u=rw $< $@
 
+$(GNUPGHOME)/migrate-keys : $(BIN_DIR)/migrate-keys
+	install -m u=rwx $< $@
+
 $(GNUPGHOME)/keychain-agent.sh : testing/agent.sh
 	install -m u=rwx $< $@
 
-install : $(GNUPGHOME)/keychain-interpose.dylib sign-gpg-agent
+install : $(GNUPGHOME)/keychain-interpose.dylib $(GNUPGHOME)/migrate-keys sign-gpg-agent
 
 .PHONY : all test clean sign-gpg-agent install

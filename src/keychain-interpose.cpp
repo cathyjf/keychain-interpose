@@ -9,8 +9,8 @@
 #include <gpg-error.h>
 #include <Security/Security.h>
 
-#include "include/dyld-interposing.h"
-#include "include/keychain-interpose.h"
+#include "include/apple/dyld-interposing.h"
+#include "include/common.h"
 #include "include/log.h"
 
 namespace {
@@ -66,19 +66,11 @@ gpgrt_stream_t my_gpgrt_fopen(const char *_GPGRT__RESTRICT strPath, const char *
     const auto path = std::filesystem::path{ strPath };
     write_log_message("In my_gpgrt_fopen, path = " + std::string{ strPath } + ", mode = " + mode);
 
-    static auto gpgPrivateKeyPath = ([]() -> std::filesystem::path {
-        const auto env_p = std::getenv("GNUPGHOME");
-        if (env_p == nullptr) {
-            return {};
-        }
-        const auto path = std::filesystem::path{ env_p } / "private-keys-v1.d";
-        write_log_message("Determined private key path: " + path.string());
-        return path;
-    })();
-    if (gpgPrivateKeyPath.empty()) {
+    static auto gpg_private_key_path = get_private_key_path();
+    if (gpg_private_key_path.empty()) {
         write_log_message("Unable to determine private key path. Set the GNUPGHOME environment variable.");
         return gpgrt_fopen(strPath, mode);
-    } else if (!std::filesystem::equivalent(gpgPrivateKeyPath, path.parent_path())) {
+    } else if (!std::filesystem::equivalent(gpg_private_key_path, path.parent_path())) {
         write_log_message("This isn't a private key. Falling back to normal gpgrt_fopen behavior.");
         return gpgrt_fopen(strPath, mode);
     } else if (std::strcmp(mode, "rb") != 0) {

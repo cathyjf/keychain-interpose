@@ -21,6 +21,9 @@ define CODESIGN
 	fi
 endef
 
+# Use Homebrew clang to compile if available. Otherwise, use Apple's clang.
+CXX = $(eval value := $(shell which "$$(brew --prefix)/opt/llvm/bin/clang++" || which c++))$(value)
+
 all : $(BINARIES)
 
 $(BIN_DIR)/keychain-interpose.dylib : $(DYLIB_OBJECTS)

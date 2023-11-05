@@ -1,4 +1,4 @@
-CPPFLAGS :=  -std=c++17 `pkg-config --cflags gpg-error` -Wall
+CPPFLAGS := -std=c++20 `pkg-config --cflags gpg-error` -Wall
 LDFLAGS := -framework Security `pkg-config --libs gpg-error`
 
 keychain-interpose.dylib : src/keychain-interpose.cpp src/log.o

@@ -10,13 +10,10 @@
 #include <Security/Security.h>
 
 #include "include/dyld-interposing.h"
+#include "include/keychain-interpose.h"
 #include "include/log.h"
 
-using namespace std::string_view_literals;
-
 namespace {
-
-constexpr std::string_view KEYCHAIN_SERVICE_NAME { "GPG Private Key"sv };
 
 #pragma clang diagnostic push
 // SecKeychainFindGenericPassword and SecKeychainItemFreeContent are deprecated.

@@ -1,6 +1,5 @@
-*.o
-
 .vscode
+bin
+objects
 
-/keychain-interpose.dylib
-/keychain-interpose.log
+testing/keychain-interpose.log

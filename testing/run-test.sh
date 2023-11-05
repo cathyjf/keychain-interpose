@@ -2,7 +2,7 @@
 
 set -l agent (realpath (status dirname))"/agent.sh"
 
-make -C ~/git/gnupg -j
+# make -C ~/git/gnupg -j
 
 killall gpg-agent
 eval "$agent" --daemon

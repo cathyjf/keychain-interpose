@@ -1,5 +1,10 @@
-CPPFLAGS := -std=c++20 $(shell pkg-config --cflags gpg-error) -Wall
-LDFLAGS := -framework Security $(shell pkg-config --libs gpg-error)
+CPPFLAGS := -std=c++20 -O3 -Wall -Werror
+LDFLAGS := -framework Security
+OBJECT_DIR := objects
+BIN_DIR := bin
+DYLIB_OBJECTS := $(addprefix $(OBJECT_DIR)/, keychain-interpose.o log.o)
+OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o) $(DYLIB_OBJECTS)
+BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys keychain-interpose.dylib)
 IDENTITY = $(eval value := $(shell security find-identity -v -p codesigning | grep -o "[A-F0-9]\{25,\}"))$(value)
 GNUPGHOME = $(eval value := $(shell printf $$GNUPGHOME))$(value)
 define CODESIGN
@@ -15,14 +20,29 @@ define CODESIGN
 	fi
 endef
 
-keychain-interpose.dylib : src/keychain-interpose.cpp src/log.o
-	$(CXX) -dynamiclib $^ -o $@ $(CPPFLAGS) $(LDFLAGS)
+all : $(BINARIES)
+
+$(BIN_DIR)/keychain-interpose.dylib : $(DYLIB_OBJECTS)
+	$(CXX) -dynamiclib $^ -o $@ $(CPPFLAGS) $(LDFLAGS) $(shell pkg-config --libs gpg-error)
 	$(call CODESIGN, $@)
 
-src/log.o : src/log.cpp
+$(BIN_DIR)/migrate-keys : $(OBJECT_DIR)/migrate-keys.o
+	$(CXX) $^ -o $@ $(CPPFLAGS) $(LDFLAGS)
+
+$(OBJECT_DIR)/%.o : src/%.cpp
+	$(CXX) -c $^ -o $@ $(CPPFLAGS) $(shell pkg-config --cflags gpg-error)
+
+$(OBJECTS) : | $(OBJECT_DIR)
+$(BINARIES) : | $(BIN_DIR)
+$(OBJECT_DIR) $(BIN_DIR) :
+	mkdir $@
+
+test : $(BIN_DIR)/keychain-interpose.dylib
+	testing/run-test.sh
 
 clean :
-	-rm keychain-interpose.dylib src/log.o
+	rm $(OBJECTS) $(BINARIES) >/dev/null 2>&1 || true
+	rmdir $(OBJECT_DIR) $(BIN_DIR) >/dev/null 2>&1 || true
 
 sign-gpg-agent :
 	$(call CODESIGN, "$(shell brew --prefix libgcrypt)/lib/libgcrypt.dylib")
@@ -32,12 +52,12 @@ sign-gpg-agent :
 	$(call CODESIGN, "$(shell brew --prefix gettext)/lib/libintl.dylib")
 	$(call CODESIGN, "$(shell which gpg-agent)", --entitlements gpg-agent/entitlements.plist)
 
-$(GNUPGHOME)/keychain-interpose.dylib : keychain-interpose.dylib
+$(GNUPGHOME)/keychain-interpose.dylib : $(BIN_DIR)/keychain-interpose.dylib
 	install -m u=rw $< $@
 
-$(GNUPGHOME)/keychain-agent.sh : agent.sh
+$(GNUPGHOME)/keychain-agent.sh : testing/agent.sh
 	install -m u=rwx $< $@
 
 install : $(GNUPGHOME)/keychain-interpose.dylib sign-gpg-agent
 
-.PHONY : clean sign-gpg-agent install
+.PHONY : all test clean sign-gpg-agent install

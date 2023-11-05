@@ -11,7 +11,8 @@
 
 namespace {
 
-constexpr auto DISABLE_LOGGING_ENV_VAR = "KEYCHAIN_INTERPOSE_DISABLE_LOGGING";
+constexpr auto ENV_VAR_DISABLE_LOGGING = "KEYCHAIN_INTERPOSE_DISABLE_LOGGING";
+constexpr auto ENV_VAR_LOG_FILE_PATH = "KEYCHAIN_INTERPOSE_LOG_FILE_PATH";
 
 std::filesystem::path getDylibPath() {
     auto info = Dl_info{};
@@ -32,7 +33,7 @@ void write_log_message(const char *message) {
     const auto lock = std::scoped_lock{ mutex };
     static auto exeName = std::string{};
     static auto logStream = ([]() -> std::ofstream {
-        if (getenv(DISABLE_LOGGING_ENV_VAR) != nullptr) {
+        if (getenv(ENV_VAR_DISABLE_LOGGING) != nullptr) {
             return {};
         }
         const auto logPath = ([]() -> std::string {
@@ -41,6 +42,9 @@ void write_log_message(const char *message) {
                 return {};
             }
             exeName = exePath.filename().string();
+            if (const auto env_filename = getenv(ENV_VAR_LOG_FILE_PATH)) {
+                return { env_filename };
+            }
             return exePath.replace_filename("keychain-interpose.log").string();
         })();
         if (logPath.empty()) [[unlikely]] {

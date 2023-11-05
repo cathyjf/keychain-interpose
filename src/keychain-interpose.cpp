@@ -96,7 +96,8 @@ gpgrt_stream_t my_gpgrt_fopen(const char *_GPGRT__RESTRICT strPath, const char *
     auto stream = get_key_from_keychain(keygrip.string());
     if (!stream) {
         write_log_message("Failed to find or access private key in keychain: " + keygrip.string());
-        return nullptr;
+        write_log_message("Falling back to reading from the filesystem.");
+        return gpgrt_fopen(strPath, mode);
     }
     write_log_message("Found private key in keychain: " + keygrip.string());
     my_streams.insert(stream.get());

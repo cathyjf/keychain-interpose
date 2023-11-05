@@ -105,7 +105,7 @@ gpgrt_stream_t my_gpgrt_fopen(const char *_GPGRT__RESTRICT strPath, const char *
 
 int my_gpgrt_fseek(gpgrt_stream_t any_stream, long int offset, int whence) {
     if (!my_streams.contains(any_stream)) {
-        return my_gpgrt_fseek(any_stream, offset, whence);
+        return gpgrt_fseek(any_stream, offset, whence);
     }
 
     const auto stream = reinterpret_cast<my_gpgrt_stream *>(any_stream);
@@ -220,7 +220,9 @@ DYLD_INTERPOSE(my_gpgrt_fclose, gpgrt_fclose);
 
 __attribute__((constructor))
 void initialize(int argc, const char **argv) {
-    write_log_message("Initialized keychain interposition library.");
+    // If we ever need to do any initialization, we can do it here.
+    // However, don't write to our log file here, or the log file won't work
+    // correctly when other functions call it later.
 }
 
 } // anomymous namespace

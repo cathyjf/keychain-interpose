@@ -1,3 +1,4 @@
+module;
 #include <chrono>
 #include <cstdlib>
 #include <dlfcn.h>
@@ -7,12 +8,12 @@
 #include <string>
 #include <time.h>
 
-#include "include/log.h"
-
-namespace {
+export module cathyjf.ki.log;
 
 constexpr auto ENV_VAR_DISABLE_LOGGING = "KEYCHAIN_INTERPOSE_DISABLE_LOGGING";
 constexpr auto ENV_VAR_LOG_FILE_PATH = "KEYCHAIN_INTERPOSE_LOG_FILE_PATH";
+
+export void write_log_message(const char *); // Forward declaration for `getDylibPath`.
 
 std::filesystem::path getDylibPath() {
     auto info = Dl_info{};
@@ -22,13 +23,11 @@ std::filesystem::path getDylibPath() {
     return {};
 }
 
-} // anonymous namespace
-
-void write_log_message(const std::string message) {
+export void write_log_message(const std::string message) {
     write_log_message(message.c_str());
 }
 
-void write_log_message(const char *message) {
+export void write_log_message(const char *message) {
     static auto mutex = std::mutex{};
     const auto lock = std::scoped_lock{ mutex };
     static auto exeName = std::string{};

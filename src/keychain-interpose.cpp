@@ -9,9 +9,10 @@
 #include <gpg-error.h>
 #include <Security/Security.h>
 
-#include "include/apple/dyld-interposing.h"
-#include "include/common.h"
-#include "include/log.h"
+#include "headers/apple/dyld-interposing.h"
+
+import cathyjf.ki.common;
+import cathyjf.ki.log;
 
 namespace {
 

@@ -4,7 +4,7 @@
 #include <sstream>
 #include <Security/Security.h>
 
-#include "include/common.h"
+import cathyjf.ki.common;
 
 namespace {
 

@@ -6,6 +6,8 @@
 #include <iostream>
 #include <memory>
 #include <set>
+
+#include <fmt/core.h>
 #include <gpg-error.h>
 #include <Security/Security.h>
 
@@ -180,12 +182,7 @@ ssize_t my_gpgrt_read_line(gpgrt_stream_t any_stream, char **pbuffer, size_t *bu
         (*pbuffer)[i] = '\n';
     }
     (*pbuffer)[i + 1] = '\0';
-    auto carray = std::array<char, 70>{};
-    const auto clength = std::snprintf(carray.begin(), carray.size(),
-        "Read a line of %td characters from stream: %s", i, stream->keygrip.c_str());
-    if (clength > 0) {
-        write_log_message(carray.begin());
-    }
+    write_log_message(fmt::format("Read a line of {} characters from stream: {}", i, stream->keygrip));
     return i;
 }
 

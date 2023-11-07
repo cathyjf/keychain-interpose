@@ -1,8 +1,8 @@
 OBJECT_DIR := objects
 BIN_DIR := bin
 CPPFLAGS_MINIMAL := -std=c++20 -O3 -Wall -Werror -fprebuilt-module-path="$(OBJECT_DIR)"
-CPPFLAGS := $(CPPFLAGS_MINIMAL) $(shell pkg-config --cflags gpg-error)
-LDFLAGS := -framework Security
+CPPFLAGS := $(CPPFLAGS_MINIMAL) $(shell pkg-config --cflags fmt gpg-error)
+LDFLAGS := -framework Security $(shell brew --prefix fmt)/lib/libfmt.a
 MODULE_OBJECTS := $(addprefix $(OBJECT_DIR)/, cathyjf.ki.common.pcm cathyjf.ki.log.pcm)
 MIGRATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o cathyjf.ki.common.o)
 DYLIB_OBJECTS := $(addprefix $(OBJECT_DIR)/, keychain-interpose.o cathyjf.ki.common.o cathyjf.ki.log.o)

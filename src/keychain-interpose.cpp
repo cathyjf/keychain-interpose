@@ -23,7 +23,7 @@ namespace {
 // Ignore these warnings for now.
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
-struct my_gpgrt_stream {
+struct alignas(std::remove_pointer_t<gpgrt_stream_t>) my_gpgrt_stream {
     struct password_closer {
         typedef char *pointer;
         void operator()(char *pointer) {

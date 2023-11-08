@@ -1,6 +1,6 @@
 OBJECT_DIR := objects
 BIN_DIR := bin
-CPPFLAGS_MINIMAL := -std=c++20 -O3 -Wall -Werror -fprebuilt-module-path="$(OBJECT_DIR)"
+CPPFLAGS_MINIMAL := -std=c++20 -O3 -flto -Wall -Werror -fprebuilt-module-path="$(OBJECT_DIR)"
 CPPFLAGS := $(CPPFLAGS_MINIMAL) $(shell pkg-config --cflags fmt gpg-error)
 LDFLAGS := -framework Security $(shell brew --prefix fmt)/lib/libfmt.a
 MODULE_OBJECTS := $(addprefix $(OBJECT_DIR)/, cathyjf.ki.common.pcm cathyjf.ki.log.pcm)

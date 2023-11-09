@@ -50,7 +50,7 @@ $(OBJECT_DIR)/%.o : $(OBJECT_DIR)/%.pcm
 # Dependencies
 
 $(LIBCF++) : dependencies/libCF++
-	make -C $^
+	make -C $^ CXX="$(CXX)" LIBTOOL="$(shell brew --prefix llvm)/bin/llvm-libtool-darwin"
 
 #################
 
@@ -59,6 +59,9 @@ test : $(BIN_DIR)/keychain-interpose.dylib
 
 clean :
 	rm -Rf $(OBJECT_DIR) $(BIN_DIR)
+
+clean-deps:
+	make -C dependencies/libCF++ clean
 
 sign-gpg-agent : src/meta/ggp-agent-entitlements.plist
 	$(call CODESIGN, "$(shell brew --prefix libgcrypt)/lib/libgcrypt.dylib")
@@ -79,4 +82,4 @@ $(GNUPGHOME)/keychain-agent.sh : testing/agent.sh
 
 install : $(GNUPGHOME)/keychain-interpose.dylib $(GNUPGHOME)/migrate-keys sign-gpg-agent
 
-.PHONY : all test clean sign-gpg-agent install
+.PHONY : all test clean clean-deps sign-gpg-agent install

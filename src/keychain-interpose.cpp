@@ -9,6 +9,8 @@
 
 #include <fmt/core.h>
 #include <gpg-error.h>
+#include <CF++.hpp>
+#include <CoreFoundation/CFData.h>
 #include <Security/Security.h>
 
 #include "headers/apple/dyld-interposing.h"
@@ -18,50 +20,36 @@ import cathyjf.ki.log;
 
 namespace {
 
-#pragma clang diagnostic push
-// SecKeychainFindGenericPassword and SecKeychainItemFreeContent are deprecated.
-// Ignore these warnings for now.
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-
 struct alignas(std::remove_pointer_t<gpgrt_stream_t>) my_gpgrt_stream {
-    struct password_closer {
-        typedef char *pointer;
-        void operator()(char *pointer) {
-            SecKeychainItemFreeContent(nullptr, pointer);
+    template <class T> struct cf_ref_releaser {
+        typedef T pointer;
+        void operator()(T cf_ref) {
+            CFRelease(cf_ref);
         }
     };
-    typedef std::unique_ptr<char *, password_closer> managed_password;
+    typedef std::unique_ptr<CFDataRef, cf_ref_releaser<CFDataRef>> managed_data_ref;
     constexpr static auto magic_length = 12;
-    my_gpgrt_stream(const auto keygrip): keygrip{
-        "..." + keygrip.substr(keygrip.length() - magic_length, magic_length)
-    } {};
-    std::string keygrip{};
-    managed_password password{};
-    std::uint32_t password_length{};
+    my_gpgrt_stream(const auto keygrip, const auto ref):
+        keygrip{ "..." + keygrip.substr(keygrip.length() - magic_length, magic_length) },
+        data_ref{ static_cast<CFDataRef>(ref) },
+        password{ CFDataGetBytePtr(data_ref.get()) },
+        password_length{ CFDataGetLength(data_ref.get()) } {}
+    const std::string keygrip{};
+    const managed_data_ref data_ref{};
+    const uint8_t *password{};
+    const CFIndex password_length{};
     std::ptrdiff_t index{};
 };
 
 std::unique_ptr<my_gpgrt_stream> get_key_from_keychain(const std::string keygrip) {
-    auto stream = std::make_unique<my_gpgrt_stream>(keygrip);
-    auto password = (char *){};
-    const auto status = SecKeychainFindGenericPassword(
-        nullptr,                        // keychainOrArray
-        KEYCHAIN_SERVICE_NAME.length(), // serviceNameLength
-        KEYCHAIN_SERVICE_NAME.data(),   // serviceName
-        keygrip.length(),
-        keygrip.c_str(),
-        &stream->password_length,
-        reinterpret_cast<void **>(&password),
-        nullptr  // itemRef
-    );
-    stream->password = my_gpgrt_stream::managed_password{ password };
-    if (status != errSecSuccess) {
+    auto query = get_keychain_query_for_keygrip(keygrip);
+    query << CF::Pair{ kSecReturnData, CF::Boolean{ true } };
+    auto data = CFTypeRef{};
+    if (SecItemCopyMatching(query, &data) != errSecSuccess) {
         return {};
     }
-    return stream;
+    return std::make_unique<my_gpgrt_stream>(keygrip, data);
 }
-
-#pragma clang diagnostic pop
 
 auto my_streams = std::set<void *>{};
 
@@ -132,7 +120,7 @@ size_t my_gpgrt_fread(void *_GPGRT__RESTRICT ptr, size_t size, size_t nitems, gp
     }
     const auto items = std::min(remaining_bytes / size, nitems);
     const auto bytes = items * size;
-    std::memcpy(ptr, stream->password.get() + stream->index, bytes);
+    std::memcpy(ptr, stream->password + stream->index, bytes);
     stream->index += bytes;
     return items;
 }
@@ -173,8 +161,7 @@ ssize_t my_gpgrt_read_line(gpgrt_stream_t any_stream, char **pbuffer, size_t *bu
     });
     auto i = std::ptrdiff_t{};
     for (; i < usable_length; ++i) {
-        const auto character = (*pbuffer)[i] = stream->password.get()[stream->index++];
-        if (character == '\n') {
+        if (((*pbuffer)[i] = stream->password[stream->index++]) == '\n') {
             break;
         }
     }

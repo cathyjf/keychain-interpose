@@ -2,55 +2,24 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+
+#include <CF++.hpp>
 #include <Security/Security.h>
 
 import cathyjf.ki.common;
 
 namespace {
 
-struct keychain_item_closer {
-    typedef SecKeychainItemRef pointer;
-    void operator()(SecKeychainItemRef pointer) {
-        CFRelease(pointer);
-    }
-};
-typedef std::unique_ptr<SecKeychainItemRef, keychain_item_closer> managed_keychain_item;
-
-#pragma clang diagnostic push
-// SecKeychainFindGenericPassword and SecKeychainAddGenericPassword are deprecated.
-// Ignore these warnings for now.
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-
-managed_keychain_item find_keychain_item(const std::string keygrip) {
-    auto item_ref = SecKeychainItemRef{};
-    const auto status = SecKeychainFindGenericPassword(
-        nullptr,                        // keychainOrArray
-        KEYCHAIN_SERVICE_NAME.length(), // serviceNameLength
-        KEYCHAIN_SERVICE_NAME.data(),   // serviceName
-        keygrip.length(),
-        keygrip.c_str(),
-        nullptr,
-        nullptr,
-        &item_ref
-    );
-    if (status != errSecSuccess) {
-        return {};
-    }
-    return managed_keychain_item{ item_ref };
+auto keychain_has_item(const std::string keygrip) {
+    const auto query = get_keychain_query_for_keygrip(keygrip);
+    return (SecItemCopyMatching(query, nullptr) == errSecSuccess);
 }
 
 auto add_key_to_keychain(const std::string keygrip, const auto data) {
-    const auto status = SecKeychainAddGenericPassword(
-        nullptr,
-        KEYCHAIN_SERVICE_NAME.length(), KEYCHAIN_SERVICE_NAME.data(),
-        keygrip.length(), keygrip.c_str(),
-        data.length(), data.c_str(),
-        nullptr
-    );
-    return (status == errSecSuccess);
+    auto query = get_keychain_query_for_keygrip(keygrip);
+    query << CF::Pair{ kSecValueData, data };
+    return (SecItemAdd(query, nullptr) == errSecSuccess);
 }
-
-#pragma clang diagnostic pop
 
 auto read_entire_file(const auto filename) {
     auto ifs = std::ifstream{ filename };
@@ -96,7 +65,7 @@ int main() {
             continue;
         }
         std::cout << "    This appears to be a private key." << std::endl;
-        if (find_keychain_item(keygrip)) {
+        if (keychain_has_item(keygrip)) {
             std::cout << "    This key is already in the keychain." << std::endl;
             std::cout << "    To avoid possible data loss, we aren't going to touch this keychain entry." << std::endl;
             continue;

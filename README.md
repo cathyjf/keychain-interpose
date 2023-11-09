@@ -51,12 +51,10 @@ There are four components involved in migrating the secret keys to the keychain:
 
 ## Building the software
 
-Clone the repository with `git pull https://github.com/cathyjf/keychain-interpose`.
+Clone the repository with `git clone --recurse https://github.com/cathyjf/keychain-interpose`.
 
-To build the software, the following Homebrew packages must be installed:
-[`gnupg`](https://formulae.brew.sh/formula/gnupg),
-[`fmt`](https://formulae.brew.sh/formula/fmt), and
-[`llvm`](https://formulae.brew.sh/formula/llvm).
+Install the project's dependencies with [Homebrew](https://brew.sh/):
+`brew install boost fmt gnupg llvm`.
 
 Run `make install -j` in the project directory to build the software and sign it with your
 codesigning identity. The `codesign` command, which is invoked several times by the `Makefile`,

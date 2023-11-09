@@ -1,8 +1,14 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <span>
 #include <sstream>
+#include <vector>
 
+#include <boost/program_options/options_description.hpp>
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/variables_map.hpp>
+#include <fmt/core.h>
 #include <CF++.hpp>
 #include <Security/Security.h>
 
@@ -28,32 +34,16 @@ auto read_entire_file(const auto filename) {
     return buffer.str();
 }
 
-auto &operator<<(auto &buffer, const auto streamable) {
-    buffer << streamable.count << ' ' << streamable.noun;
-    if (streamable.count > 1) {
+auto get_plural(const auto noun, const auto count) {
+    auto buffer = std::stringstream{};
+    buffer << count << ' ' << noun;
+    if (count > 1) {
         buffer << 's';
     }
-    return buffer;
+    return buffer.str();
 }
 
-template <class T, class U>
-auto get_plural(const T noun, const U count) {
-    struct {
-        T noun;
-        U count;
-    } streamable{ noun, count };
-    return streamable;
-}
-
-} // anonymous namespace
-
-int main() {
-    const auto private_key_path = get_private_key_path();
-    if (private_key_path.empty()) {
-        std::cerr << "Error: Could not determine private key directory." << std::endl;
-        return 1;
-    }
-    std::cout << "Private key directory: " << private_key_path << std::endl;
+int migrate_keys_to_keychain(const auto private_key_path) {
     auto successes = 0;
     auto failures = 0;
     for (auto entry : std::filesystem::directory_iterator(private_key_path)) {
@@ -95,4 +85,100 @@ int main() {
         std::cout << "Nothing was changed." << std::endl;
     }
     return failures;
+}
+
+int export_keys_from_keychain(const auto private_key_path) {
+    std::cout << "TODO: Implement export_keys_from_keychain." << std::endl;
+    return 1;
+}
+
+void throw_if_invalid_options(const auto argc, const auto argv) {
+    for (const auto arg : std::span(argv + 1, argc - 1)) {
+        const auto string = std::string{ arg };
+        // All valid options must begin with "--".
+        if ((string.length() > 2) && (string[0] == '-') && (string[1] == '-')) {
+            continue;
+        }
+        throw boost::program_options::error{
+            fmt::format("Invalid command line argument: '{}'", string)
+        };
+    }
+}
+
+template <class T>
+void throw_if_conflicting_options(const auto &vm, const std::initializer_list<T> options) {
+    auto seen_options = std::vector<T>{};
+    std::copy_if(options.begin(), options.end(), std::back_inserter(seen_options),
+        [&vm](const T &i) {
+            return (vm.count(i) != 0);
+        });
+    if (seen_options.size() == 0) {
+        return;
+    }
+    const auto error = ([&seen_options]() {
+        auto buffer = std::stringstream{};
+        buffer << "Choose only one of the following options: ";
+        const auto size = seen_options.size();
+        for (auto i = 0; i < size; ++i) {
+            buffer << "'--" << seen_options[i] << '\'';
+            if (i != (size - 1)) {
+                buffer << ", ";
+            }
+        }
+        return buffer.str();
+    })();
+    throw boost::program_options::error{ error };
+}
+
+} // anonymous namespace
+
+int main(const int argc, char *const *argv) {
+    namespace po = boost::program_options;
+    auto desc = po::options_description{ fmt::format("Allowed options for {}", argv[0]) };
+    desc.add_options()
+        ("help", "Print this help message.")
+        ("migrate-to-keychain",
+            "Migrate GPG keys from the filesystem into the keychain and replace the "
+            "filesystem keys with placeholders. This is the default if no options are "
+            "specified on the command line.")
+        ("export-from-keychain", "Copy GPG keys from the keychain into the filesystem.");
+
+    po::variables_map vm;
+    try {
+        throw_if_invalid_options(argc, argv);
+        po::store(po::parse_command_line(argc, argv, desc), vm);
+        throw_if_conflicting_options(vm, { "migrate-to-keychain", "export-from-keychain" });
+    } catch (po::error &ex) {
+        const auto error = ([&ex]() -> std::string {
+            if (const auto unknown = dynamic_cast<po::unknown_option *>(&ex)) {
+                return fmt::format("Invalid option: '{}'", unknown->get_option_name());
+            }
+            return ex.what();
+        })();
+        std::cerr << "Error: " << error << ".\n\n" << desc << std::endl;
+        return -1;
+    }
+    po::notify(vm);
+
+    if (vm.count("help")) {
+        std::cout << desc << std::endl;
+        return 1;
+    }
+
+    const auto private_key_path = get_private_key_path();
+    if (private_key_path.empty()) {
+        std::cerr << "Error: Could not determine private key directory." << std::endl;
+        std::cerr << "Make sure that either GNUPG or HOME is set." << std::endl;
+        return 1;
+    }
+    std::cout << "Private key directory: " << private_key_path << std::endl;
+
+    if (vm.count("migrate-to-keychain")) {
+        return migrate_keys_to_keychain(private_key_path);
+    } else if (vm.count("export-from-keychain")) {
+        return export_keys_from_keychain(private_key_path);
+    }
+
+    std::cout << "No operation was specified. Assuming --migrate-to-keychain." << std::endl;
+    return migrate_keys_to_keychain(private_key_path);
 }

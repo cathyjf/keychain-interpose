@@ -25,11 +25,11 @@ limited to the authorized `gpg-agent(1)` process and its authorized dependencies
 
 There are four components involved in migrating the secret keys to the keychain:
 
-1. A supplied program called `migrate-keys` reads the keys from the `private-keys-v1.d`
+1. A supplied program named `migrate-keys` reads the keys from the `private-keys-v1.d`
    directory, adds them to the keychain, and then replaces the keys in the `private-keys-v1.d`
    directory with empty files (placeholders). See `src/migrate-keys.cpp`.
 
-2. A supplied library called `keychain-interpose.dylib` is designed to be injected into
+2. A supplied library named `keychain-interpose.dylib` is designed to be injected into
    the `gpg-agent(1)` process when it starts up. This library causes `gpg-agent(1)` to
    attempt to find secret keys in the keychain before falling back to the filesystem.
    See `src/keychain-interpose.cpp`.
@@ -80,7 +80,9 @@ is intended to be useful, I can make no guarantees that it will work correctly. 
 software has bugs (and it might), you may find yourself unable to use your local secret
 keys at all, which is why you should have backups.
 
-## License
+## Licensing
+
+### License for `keychain-interpose`
 
 The `keychain-interpose` project was created by Cathy J. Fitzpatrick &lt;cathy@cathyjf.com&gt; (copyright 2023).
 
@@ -96,3 +98,45 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+### License for `libgpg-error`
+
+The `keychain-interpose.dylib` library (built from the source in this repository) links
+against `libgpg-error`, which was released under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation, either version 2.1 of the License, or
+any later version.
+
+I have chosen to use `libgpg-error` under the terms of version 3 of the GNU Lesser General
+Public License. A copy of version 3 of the GNU Lesser General Public License is available
+at the following location: <https://www.gnu.org/licenses/lgpl-3.0.en.html>
+
+This repository does not contain a copy of `libgpg-error`. You should generally obtain
+`libgpg-error` by installing the `gnupg` package from Homebrew, as described above
+under the heading "[Building the software](#building-the-software)".
+
+### License for `CoreFoundation++`
+
+This repository incorporates [CoreFoundation++](https://github.com/macmade/CFPP), which was
+released by its author ([@macmade](https://github.com/macmade)) under the following license:
+
+> The MIT License (MIT)
+>
+> Copyright (c) 2014 Jean-David Gadina - www.xs-labs.com / www.digidna.net
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy
+> of this software and associated documentation files (the "Software"), to deal
+> in the Software without restriction, including without limitation the rights
+> to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+> copies of the Software, and to permit persons to whom the Software is
+> furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in
+> all copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+> IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+> FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+> AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+> LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+> THE SOFTWARE.

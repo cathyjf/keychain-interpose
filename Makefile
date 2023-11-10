@@ -3,11 +3,12 @@ BIN_DIR := bin
 CPPFLAGS_MINIMAL := -std=c++20 -O3 -flto -Wall -Werror -fprebuilt-module-path="$(OBJECT_DIR)"
 CPPFLAGS := $(CPPFLAGS_MINIMAL) $(shell pkg-config --cflags fmt gpg-error) -Idependencies/libCF++/CF++/include \
 	-I$(shell brew --prefix boost)/include
+OBJCFLAGS := -fobjc-arc -Wno-unused-but-set-variable
 LIBCF++ := dependencies/libCF++/Build/lib/libCF++.a
 LDFLAGS := -fuse-ld=lld -framework Security -framework CoreFoundation $(shell brew --prefix fmt)/lib/libfmt.a \
 	$(shell brew --prefix boost)/lib/libboost_program_options.a
 MODULE_OBJECTS := $(addprefix $(OBJECT_DIR)/, cathyjf.ki.common.pcm cathyjf.ki.log.pcm)
-MIGRATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o cathyjf.ki.common.o)
+MIGRATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o cathyjf.ki.common.o biometric-auth.o)
 DYLIB_OBJECTS := $(addprefix $(OBJECT_DIR)/, keychain-interpose.o cathyjf.ki.common.o cathyjf.ki.log.o)
 OBJECTS := $(MIGRATE_OBJECTS) $(DYLIB_OBJECTS) $(MODULE_OBJECTS)
 BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys keychain-interpose.dylib)
@@ -26,11 +27,14 @@ $(BIN_DIR)/keychain-interpose.dylib : $(DYLIB_OBJECTS) $(LIBCF++)
 	$(call CODESIGN, $@)
 
 $(BIN_DIR)/migrate-keys : $(MIGRATE_OBJECTS) $(LIBCF++)
-	$(CXX) $^ -o $@ $(CPPFLAGS) $(LDFLAGS)
+	$(CXX) $^ -o $@ $(CPPFLAGS) $(LDFLAGS) -framework LocalAuthentication -framework Foundation
 	$(call CODESIGN, $@)
 
 $(OBJECT_DIR)/%.o : src/%.cpp
 	$(CXX) -c $^ -o $@ $(CPPFLAGS)
+
+$(OBJECT_DIR)/%.o : src/%.mm
+	$(CXX) -c $^ -o $@ $(CPPFLAGS) $(OBJCFLAGS)
 
 $(OBJECTS) : | $(OBJECT_DIR)
 $(BINARIES) : | $(BIN_DIR)

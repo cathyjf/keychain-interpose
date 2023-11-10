@@ -15,6 +15,9 @@
 
 import cathyjf.ki.common;
 
+// The `authenticate_user` function is defined in `biometric-auth.mm`.
+auto authenticate_user(const std::string_view &) -> bool;
+
 namespace {
 
 auto keychain_has_item(const std::string keygrip) {
@@ -154,13 +157,18 @@ auto migrate_keys_to_keychain(const auto private_key_path) {
     return failures;
 }
 
-int export_keys_from_keychain(const auto private_key_path) {
+auto export_keys_from_keychain(const auto private_key_path) {
     const auto keys = get_all_keys_from_keychain();
     if (!keys) {
         std::cout << "No GPG keys found in keychain. Nothing to do." << std::endl;
         return 0;
     }
     std::cout << "Found " << get_plural("GPG key", keys->size()) << " in the keychain." << std::endl;
+    std::cout << "Obtaining user authorization before exporting any keys." << std::endl;
+    if (!authenticate_user("export GPG private keys from the keychain and save them to the filesystem")) {
+        std::cout << "Failed to obtain authorization." << std::endl;
+        return 1;
+    }
     for (const auto &keygrip : *keys) {
         std::cout << "Found keychain entry for \"" << keygrip << "\"." << std::endl;
         const auto file = private_key_path / keygrip;

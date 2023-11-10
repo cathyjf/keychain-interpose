@@ -14,6 +14,7 @@ export constexpr auto KEYCHAIN_SERVICE_NAME = "GPG Private Key"sv;
 export auto get_keychain_query_for_keygrip(const std::optional<std::string> keygrip) {
     auto query = CF::Dictionary{};
     query << CF::Pair{ kSecClass, kSecClassGenericPassword };
+    // query << CF::Pair{ kSecUseDataProtectionKeychain, CF::Boolean{ true } };
     query << CF::Pair{ kSecAttrService,
         std::string{ KEYCHAIN_SERVICE_NAME.data(), KEYCHAIN_SERVICE_NAME.length() }};
     if (keygrip) {

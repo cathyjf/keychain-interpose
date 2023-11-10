@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if codesign -d --verbose "$1" 2>&1 | grep -q "flags=0x10000(runtime)"; then
+if [ -z "$FORCE_CODESIGN" ] && codesign -d --verbose "$1" 2>&1 | grep -q "flags=0x10000(runtime)"; then
     exit
 fi
 

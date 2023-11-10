@@ -25,10 +25,34 @@ auto keychain_has_item(const std::string keygrip) {
     return (SecItemCopyMatching(query, nullptr) == errSecSuccess);
 }
 
+auto get_string_from_cf_string(const auto string) {
+    const auto length = CFStringGetLength(string);
+    const auto bytes = std::make_unique<uint8_t[]>(length);
+    auto bytes_written = CFIndex{};
+    CFStringGetBytes(string, CFRangeMake(0, length),
+        kCFStringEncodingASCII, 0, CF::Boolean{ false },
+        bytes.get(), length, &bytes_written);
+    return std::string{ bytes.get(), bytes.get() + bytes_written };
+}
+
+auto get_error_string(const auto status) -> std::string {
+    const auto error = keychain_entry::managed_cf_ref<CFStringRef>{
+        SecCopyErrorMessageString(status, nullptr) };
+    if (!error) {
+        return {};
+    }
+    return get_string_from_cf_string(error.get());
+}
+
 auto add_key_to_keychain(const std::string keygrip, const auto data) {
     auto query = get_keychain_query_for_keygrip(keygrip);
     query << CF::Pair{ kSecValueData, CF::String{ data.data() }.GetCFObject() };
-    return (SecItemAdd(query, nullptr) == errSecSuccess);
+    const auto status = SecItemAdd(query, nullptr);
+    if (status == errSecSuccess) {
+        return true;
+    }
+    std::cerr << "    SecItemAdd failed with this error: " << get_error_string(status) << std::endl;
+    return false;
 }
 
 auto get_all_keys_from_keychain() -> std::optional<std::vector<std::string>> {
@@ -52,14 +76,7 @@ auto get_all_keys_from_keychain() -> std::optional<std::vector<std::string>> {
         const auto dict = static_cast<CFDictionaryRef>(CFArrayGetValueAtIndex(ref.get(), i));
         const auto account = static_cast<CFStringRef>(CFDictionaryGetValue(dict, kSecAttrAccount));
         assert((account != nullptr) && "The key dictionary should have a non-null value for kSecAttrAccount.");
-        const auto account_length = CFStringGetLength(account);
-        const auto bytes = std::make_unique<uint8_t[]>(account_length);
-        const auto range = CFRangeMake(0, account_length);
-        auto bytes_written = CFIndex{};
-        CFStringGetBytes(account, range,
-            kCFStringEncodingASCII, 0, CF::Boolean{ false },
-            bytes.get(), account_length, &bytes_written);
-        keys.emplace_back(bytes.get(), bytes.get() + bytes_written);
+        keys.emplace_back(get_string_from_cf_string(account));
     }
     return keys;
 }

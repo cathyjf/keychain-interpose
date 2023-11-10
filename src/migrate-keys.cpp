@@ -24,7 +24,7 @@ auto keychain_has_item(const std::string keygrip) {
 
 auto add_key_to_keychain(const std::string keygrip, const auto data) {
     auto query = get_keychain_query_for_keygrip(keygrip);
-    query << CF::Pair{ kSecValueData, data };
+    query << CF::Pair{ kSecValueData, CF::String{ data.data() }.GetCFObject() };
     return (SecItemAdd(query, nullptr) == errSecSuccess);
 }
 
@@ -46,7 +46,7 @@ auto get_all_keys_from_keychain() -> std::optional<std::vector<std::string>> {
     auto keys = std::vector<std::string>{};
     const auto length = CFArrayGetCount(ref.get());
     for (auto i = 0; i < length; ++i) {
-        const auto dict = reinterpret_cast<CFDictionaryRef>(CFArrayGetValueAtIndex(ref.get(), i));
+        const auto dict = static_cast<CFDictionaryRef>(CFArrayGetValueAtIndex(ref.get(), i));
         const auto account = static_cast<CFStringRef>(CFDictionaryGetValue(dict, kSecAttrAccount));
         assert((account != nullptr) && "The key dictionary should have a non-null value for kSecAttrAccount.");
         const auto account_length = CFStringGetLength(account);
@@ -84,10 +84,9 @@ auto is_file_placeholder(const auto file) {
 auto is_same_key_in_keychain(const auto data, const auto keygrip) {
     const auto key = get_key_from_keychain<keychain_entry>(keygrip);
     assert((key != nullptr) && "Specified key should already be in the keychain.");
-    if (data.length() != key->password_length) {
-        return false;
-    }
-    return (std::memcmp(data.c_str(), key->password, key->password_length) == 0);
+    return std::equal(
+        data.cbegin(), data.cend(),
+        key->password, key->password + key->password_length);
 }
 
 auto write_placeholder(const auto entry) {
@@ -113,7 +112,7 @@ auto migrate_keys_to_keychain(const auto private_key_path) {
         std::cout << "    This appears to be a private key." << std::endl;
         const auto data = read_entire_file(entry);
         if (keychain_has_item(keygrip)) {
-            if (is_same_key_in_keychain(data, keygrip)) {
+            if (is_same_key_in_keychain(std::string_view{ data }, keygrip)) {
                 std::cout << "    A copy of this key is already in the keychain." << std::endl;
                 if (write_placeholder(entry)) {
                     ++replacements;
@@ -127,7 +126,7 @@ auto migrate_keys_to_keychain(const auto private_key_path) {
         if (data.empty()) {
             std::cerr << "    Failed to read the private key into memory." << std::endl;
             ++failures;
-        } else if (!add_key_to_keychain(keygrip, data)) {
+        } else if (!add_key_to_keychain(keygrip, std::string_view{ data })) {
             std::cerr << "    Failed to add the key to the keychain." << std::endl;
             ++failures;
         } else {

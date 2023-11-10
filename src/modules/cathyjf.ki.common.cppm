@@ -55,6 +55,8 @@ export struct keychain_entry {
     const managed_data_ref data_ref{};
     const uint8_t *password{};
     const CFIndex password_length{};
+    keychain_entry(const auto &) = delete;
+    auto &operator=(const auto &) = delete;
 };
 
 export template <class T> requires std::is_base_of_v<keychain_entry, T>

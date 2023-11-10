@@ -10,6 +10,7 @@
 #include <boost/program_options/variables_map.hpp>
 #include <fmt/core.h>
 #include <CF++.hpp>
+#include <CoreFoundation/CFArray.h>
 #include <Security/Security.h>
 
 import cathyjf.ki.common;
@@ -25,6 +26,39 @@ auto add_key_to_keychain(const std::string keygrip, const auto data) {
     auto query = get_keychain_query_for_keygrip(keygrip);
     query << CF::Pair{ kSecValueData, data };
     return (SecItemAdd(query, nullptr) == errSecSuccess);
+}
+
+auto get_all_keys_from_keychain() -> std::optional<std::vector<std::string>> {
+    auto query = get_keychain_query_for_keygrip(std::nullopt);
+    query << CF::Pair{ kSecReturnAttributes, CF::Boolean{ true } };
+    query << CF::Pair{ kSecMatchLimit, kSecMatchLimitAll };
+    typedef keychain_entry::managed_cf_ref<CFArrayRef> managed_cf_array;
+    const auto ref = ([&query]() -> managed_cf_array {
+        auto ref = CFTypeRef{};
+        if (SecItemCopyMatching(query, &ref) != errSecSuccess) {
+            return nullptr;
+        }
+        return managed_cf_array{ static_cast<CFArrayRef>(ref) };
+    })();
+    if (!ref) {
+        return std::nullopt;
+    }
+    auto keys = std::vector<std::string>{};
+    const auto length = CFArrayGetCount(ref.get());
+    for (auto i = 0; i < length; ++i) {
+        const auto dict = reinterpret_cast<CFDictionaryRef>(CFArrayGetValueAtIndex(ref.get(), i));
+        const auto account = static_cast<CFStringRef>(CFDictionaryGetValue(dict, kSecAttrAccount));
+        assert((account != nullptr) && "The key dictionary should have a non-null value for kSecAttrAccount.");
+        const auto account_length = CFStringGetLength(account);
+        const auto bytes = std::make_unique<uint8_t[]>(account_length);
+        const auto range = CFRangeMake(0, account_length);
+        auto bytes_written = CFIndex{};
+        CFStringGetBytes(account, range,
+            kCFStringEncodingASCII, 0, CF::Boolean{ false },
+            bytes.get(), account_length, &bytes_written);
+        keys.emplace_back(bytes.get(), bytes.get() + bytes_written);
+    }
+    return keys;
 }
 
 auto read_entire_file(const auto filename) {
@@ -43,24 +77,53 @@ auto get_plural(const auto noun, const auto count) {
     return buffer.str();
 }
 
-int migrate_keys_to_keychain(const auto private_key_path) {
+auto is_file_placeholder(const auto file) {
+    return (std::filesystem::file_size(file) < 5);
+}
+
+auto is_same_key_in_keychain(const auto data, const auto keygrip) {
+    const auto key = get_key_from_keychain<keychain_entry>(keygrip);
+    assert((key != nullptr) && "Specified key should already be in the keychain.");
+    if (data.length() != key->password_length) {
+        return false;
+    }
+    return (std::memcmp(data.c_str(), key->password, key->password_length) == 0);
+}
+
+auto write_placeholder(const auto entry) {
+    if (std::ofstream{ entry }.is_open()) {
+        std::cout << "    Successfully removed the filesystem key and replaced it with a placeholder." << std::endl;
+        return true;
+    }
+    std::cout << "    Failed to remove the filesystem key." << std::endl;
+    return false;
+}
+
+auto migrate_keys_to_keychain(const auto private_key_path) {
     auto successes = 0;
     auto failures = 0;
+    auto replacements = 0;
     for (auto entry : std::filesystem::directory_iterator(private_key_path)) {
         const auto keygrip = entry.path().filename();
         std::cout << "Found " << keygrip << "." << std::endl;
-        const auto length = std::filesystem::file_size(entry);
-        if (length < 5) {
+        if (is_file_placeholder(entry)) {
             std::cout << "    Skipping this file because it appears to be a placeholder." << std::endl;
             continue;
         }
         std::cout << "    This appears to be a private key." << std::endl;
+        const auto data = read_entire_file(entry);
         if (keychain_has_item(keygrip)) {
-            std::cout << "    This key is already in the keychain." << std::endl;
-            std::cout << "    To avoid possible data loss, we aren't going to touch this keychain entry." << std::endl;
+            if (is_same_key_in_keychain(data, keygrip)) {
+                std::cout << "    A copy of this key is already in the keychain." << std::endl;
+                if (write_placeholder(entry)) {
+                    ++replacements;
+                }
+            } else {
+                std::cout << "    A different version of this key is already in the keychain." << std::endl;
+                std::cout << "    To avoid possible data loss, we aren't going to touch this keychain entry." << std::endl;
+            }
             continue;
         }
-        const auto data = read_entire_file(entry);
         if (data.empty()) {
             std::cerr << "    Failed to read the private key into memory." << std::endl;
             ++failures;
@@ -70,26 +133,53 @@ int migrate_keys_to_keychain(const auto private_key_path) {
         } else {
             std::cout << "    Successfully added the key to the keychain." << std::endl;
             ++successes;
-            if (std::ofstream{ entry }.is_open()) {
-                std::cout << "    Successfully removed the filesystem key and replaced it with a stub." << std::endl;
+            if (write_placeholder(entry)) {
+                ++replacements;
             }
         }
     }
     if (successes > 0) {
         std::cout << "Successfully added " << get_plural("key", successes) << " to the keychain." << std::endl;
     }
+    if (replacements > 0) {
+        std::cout << "Successfully removed " << get_plural("key", replacements) <<
+            " from the filesytem and replaced the " << get_plural("file", replacements) <<
+            " with placeholders." << std::endl;
+    }
     if (failures > 0) {
         std::cerr << "Failed to add " << get_plural("key", failures) << " to the keychain." << std::endl;
     }
-    if (successes == 0) {
+    if ((successes == 0) && (replacements == 0)) {
         std::cout << "Nothing was changed." << std::endl;
     }
     return failures;
 }
 
 int export_keys_from_keychain(const auto private_key_path) {
-    std::cout << "TODO: Implement export_keys_from_keychain." << std::endl;
-    return 1;
+    const auto keys = get_all_keys_from_keychain();
+    if (!keys) {
+        std::cout << "No GPG keys found in keychain. Nothing to do." << std::endl;
+        return 0;
+    }
+    std::cout << "Found " << get_plural("GPG key", keys->size()) << " in the keychain." << std::endl;
+    for (const auto &keygrip : *keys) {
+        std::cout << "Found keychain entry for \"" << keygrip << "\"." << std::endl;
+        const auto file = private_key_path / keygrip;
+        if (std::filesystem::is_regular_file(file) && !is_file_placeholder(file)) {
+            std::cout << "    Skipping this entry because a key with the same "
+                "keygrip is already in the filesystem." << std::endl;
+            continue;
+        }
+        const auto key = get_key_from_keychain<keychain_entry>(keygrip);
+        if (!key) {
+            std::cout << "    Failed to obtain this key from the keychain." << std::endl;
+            continue;
+        }
+        std::ofstream{ file }.write(
+            std::bit_cast<const std::ofstream::char_type *>(key->password), key->password_length);
+        std::cout << "    Successfully wrote key to the filesystem." << std::endl;
+    }
+    return 0;
 }
 
 void throw_if_invalid_options(const auto argc, const auto argv) {
@@ -112,7 +202,7 @@ void throw_if_conflicting_options(const auto &vm, const std::initializer_list<T>
         [&vm](const T &i) {
             return (vm.count(i) != 0);
         });
-    if (seen_options.size() == 0) {
+    if (seen_options.size() <= 1) {
         return;
     }
     const auto error = ([&seen_options]() {

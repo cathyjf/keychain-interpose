@@ -20,36 +20,15 @@ import cathyjf.ki.log;
 
 namespace {
 
-struct alignas(std::remove_pointer_t<gpgrt_stream_t>) my_gpgrt_stream {
-    template <class T> struct cf_ref_releaser {
-        typedef T pointer;
-        void operator()(T cf_ref) {
-            CFRelease(cf_ref);
-        }
-    };
-    typedef std::unique_ptr<CFDataRef, cf_ref_releaser<CFDataRef>> managed_data_ref;
-    constexpr static auto magic_length = 12;
+struct alignas(std::remove_pointer_t<gpgrt_stream_t>) my_gpgrt_stream : public keychain_entry {
     my_gpgrt_stream(const auto keygrip, const auto ref):
-        keygrip{ "..." + keygrip.substr(keygrip.length() - magic_length, magic_length) },
-        data_ref{ static_cast<CFDataRef>(ref) },
-        password{ CFDataGetBytePtr(data_ref.get()) },
-        password_length{ CFDataGetLength(data_ref.get()) } {}
-    const std::string keygrip{};
-    const managed_data_ref data_ref{};
-    const uint8_t *password{};
-    const CFIndex password_length{};
+        keychain_entry{
+            "..." + keygrip.substr(keygrip.length() - magic_length, magic_length), ref
+        } {};
     std::ptrdiff_t index{};
+private:
+    constexpr static auto magic_length = 12;
 };
-
-std::unique_ptr<my_gpgrt_stream> get_key_from_keychain(const std::string keygrip) {
-    auto query = get_keychain_query_for_keygrip(keygrip);
-    query << CF::Pair{ kSecReturnData, CF::Boolean{ true } };
-    auto data = CFTypeRef{};
-    if (SecItemCopyMatching(query, &data) != errSecSuccess) {
-        return {};
-    }
-    return std::make_unique<my_gpgrt_stream>(keygrip, data);
-}
 
 auto my_streams = std::set<void *>{};
 
@@ -73,7 +52,7 @@ gpgrt_stream_t my_gpgrt_fopen(const char *_GPGRT__RESTRICT strPath, const char *
     const auto keygrip = path.filename();
     write_log_message("Detected read request for private key: " + keygrip.string());
 
-    auto stream = get_key_from_keychain(keygrip.string());
+    auto stream = get_key_from_keychain<my_gpgrt_stream>(keygrip.string());
     if (!stream) {
         write_log_message("Failed to find or access private key in keychain: " + keygrip.string());
         write_log_message("Falling back to reading from the filesystem.");

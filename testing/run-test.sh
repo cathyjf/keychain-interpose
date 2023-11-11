@@ -1,13 +1,13 @@
-#!/usr/bin/env fish --no-config
+#!/bin/sh -x
 
-set -l agent (realpath (status dirname))"/agent.sh"
+AGENT="$(dirname $(readlink -f "$0"))/agent.sh"
 
 # make -C ~/git/gnupg -j
 
 killall gpg-agent
-eval "$agent" --daemon
-# gpg -vv --output /dev/null --agent-program $agent --decrypt Makefile.gpg
-# gpg -vv -K --with-keygrip --agent-program $agent
+eval "$AGENT" --daemon
+# gpg -vv --output /dev/null --agent-program "$AGENT" --decrypt Makefile.gpg
+# gpg -vv -K --with-keygrip --agent-program "$AGENT"
 git pull
 killall gpg-agent
 wait

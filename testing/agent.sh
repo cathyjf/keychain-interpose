@@ -1,5 +1,13 @@
-#!/usr/bin/env fish --no-config
+#!/bin/sh
 
-export KEYCHAIN_INTERPOSE_LOG_FILE_PATH=(realpath (status dirname))/keychain-interpose.log
-export DYLD_INSERT_LIBRARIES=(path resolve (realpath (status dirname))/../bin/keychain-interpose.dylib)
-exec gpg-agent $argv
+SCRIPT_DIR="$(dirname $(readlink -f "$0"))"
+set -x
+KEYCHAIN_INTERPOSE_LOG_FILE_PATH="$SCRIPT_DIR/keychain-interpose.log"
+DYLD_INSERT_LIBRARIES="$SCRIPT_DIR/../bin/keychain-interpose.dylib"
+set +x
+
+export KEYCHAIN_INTERPOSE_LOG_FILE_PATH
+export DYLD_INSERT_LIBRARIES
+
+set -x
+exec "$SCRIPT_DIR/../bin/gpg-agent.app/Contents/MacOS/gpg-agent" $@

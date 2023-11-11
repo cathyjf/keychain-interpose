@@ -46,7 +46,8 @@ auto get_error_string(const auto status) -> std::string {
 
 auto add_key_to_keychain(const std::string keygrip, const auto data) {
     auto query = get_keychain_query_for_keygrip(keygrip);
-    query << CF::Pair{ kSecValueData, CF::String{ data.data() }.GetCFObject() };
+    query << CF::Pair{ kSecUseDataProtectionKeychain, CF::Boolean{ true } };
+    query << CF::Pair{ kSecValueData, CF::Data{ data } };
     const auto status = SecItemAdd(query, nullptr);
     if (status == errSecSuccess) {
         return true;
@@ -146,7 +147,7 @@ auto migrate_keys_to_keychain(const auto private_key_path) {
         if (data.empty()) {
             std::cerr << "    Failed to read the private key into memory." << std::endl;
             ++failures;
-        } else if (!add_key_to_keychain(keygrip, std::string_view{ data })) {
+        } else if (!add_key_to_keychain(keygrip, data)) {
             std::cerr << "    Failed to add the key to the keychain." << std::endl;
             ++failures;
         } else {

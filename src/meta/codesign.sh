@@ -23,8 +23,11 @@ fi
 
 set -x
 codesign -f --timestamp --options runtime $3 -s "$2" "$1";
+RETURN_VALUE=$?
+if [ "$RETURN_VALUE" -ne "0" ]; then
+    rm -f "$1"
+fi
 set +x
 
-if [ -x "$LOCKFILE_BIN" ]; then
-    rm -Rf "$CODESIGNING_LOCKFILE"
-fi
+rm -f "$CODESIGNING_LOCKFILE"
+exit $RETURN_VALUE

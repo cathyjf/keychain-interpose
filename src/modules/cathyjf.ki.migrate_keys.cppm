@@ -1,3 +1,4 @@
+module;
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -17,6 +18,8 @@ import cathyjf.ki.common;
 
 // The `authenticate_user` function is defined in `biometric-auth.mm`.
 auto authenticate_user(const std::string_view &) -> bool;
+
+export module cathyjf.ki.migrate_keys;
 
 namespace {
 
@@ -258,7 +261,7 @@ auto operate_pinentry_wrapper(const int argc, char **argv) {
 
 } // anonymous namespace
 
-auto main(const int argc, char **argv) -> int {
+export auto migrate_keys_main(const int argc, char **argv) -> int {
     if (std::filesystem::path{ argv[0] }.filename() == "pinentry-wrapper") {
         return operate_pinentry_wrapper(argc, argv);
     }

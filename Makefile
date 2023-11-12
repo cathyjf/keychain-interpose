@@ -6,13 +6,13 @@ CPPFLAGS := $(CPPFLAGS_MINIMAL) $(shell pkg-config --cflags fmt gpg-error) -Idep
 OBJCFLAGS := -fobjc-arc -Wno-unused-but-set-variable
 LIBCF++ := dependencies/libCF++/Build/lib/libCF++.a
 LDFLAGS := -fuse-ld=lld -framework Security -framework CoreFoundation $(shell brew --prefix fmt)/lib/libfmt.a \
-	$(shell brew --prefix boost)/lib/libboost_program_options.a
-MODULE_OBJECTS := $(addprefix $(OBJECT_DIR)/, cathyjf.ki.common.pcm cathyjf.ki.log.pcm)
-MIGRATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o cathyjf.ki.common.o biometric-auth.o)
-DYLIB_OBJECTS := $(addprefix $(OBJECT_DIR)/, keychain-interpose.o cathyjf.ki.common.o cathyjf.ki.log.o)
+	$(shell brew --prefix boost)/lib/libboost_program_options.a -framework LocalAuthentication -framework Foundation
+MODULE_OBJECTS := $(addprefix $(OBJECT_DIR)/, cathyjf.ki.common.pcm cathyjf.ki.log.pcm cathyjf.ki.migrate_keys.pcm)
+DYLIB_OBJECTS := $(addprefix $(OBJECT_DIR)/, keychain-interpose.o \
+	cathyjf.ki.common.o cathyjf.ki.log.o cathyjf.ki.migrate_keys.o biometric-auth.o)
 ENCAPSULATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, encapsulate-app.o)
 OBJECTS := $(MODULE_OBJECTS) $(MIGRATE_OBJECTS) $(DYLIB_OBJECTS) $(ENCAPSULATE_OBJECTS)
-BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys keychain-interpose.dylib encapsulate-app)
+BINARIES := $(addprefix $(BIN_DIR)/, keychain-interpose.dylib encapsulate-app gpg-agent.app)
 IDENTITY = $(eval value := $(shell security find-identity -v -p codesigning | grep -o "[A-F0-9]\{25,\}"))$(value)
 TEAM_ID := KVRBCYNMT7
 GNUPGHOME = $(eval value := $(shell printf $$GNUPGHOME))$(value)
@@ -27,10 +27,6 @@ all : $(BINARIES)
 $(BIN_DIR)/keychain-interpose.dylib : $(DYLIB_OBJECTS) $(LIBCF++) | $(OBJECT_DIR)/gpg-agent-deps
 	$(CXX) -dynamiclib $^ -o $@ $(CPPFLAGS) $(LDFLAGS) $(OBJECT_DIR)/gpg-agent-deps/libgpg-error*.dylib
 	$(call CODESIGN, $@)
-
-$(BIN_DIR)/migrate-keys : $(MIGRATE_OBJECTS) $(LIBCF++) | $(OBJECT_DIR)/migrate-keys-entitlements.plist
-	$(CXX) $^ -o $@ $(CPPFLAGS) $(LDFLAGS) -framework LocalAuthentication -framework Foundation
-	$(call CODESIGN, $@, --entitlements "$(OBJECT_DIR)/migrate-keys-entitlements.plist")
 
 $(BIN_DIR)/encapsulate-app : $(ENCAPSULATE_OBJECTS)
 	$(CXX) $^ -o $@ $(CPPFLAGS) $(LDFLAGS) $(shell brew --prefix boost)/lib/libboost_regex.a
@@ -79,19 +75,19 @@ $(OBJECT_DIR)/gpg-agent-deps : $(BIN_DIR)/encapsulate-app $(OBJECT_DIR)/gpg-agen
 	export FORCE_CODESIGN=1; find "$@" -name "*.dylib" -exec $(call CODESIGN, {}) \;
 
 #################
-# App bundles
+# App bundle
 
-$(BIN_DIR)/migrate-keys.app : $(BIN_DIR)/migrate-keys
-	src/meta/make-bundle.sh "migrate-keys" $(BIN_DIR) $(OBJECT_DIR) $(IDENTITY)
-
-$(BIN_DIR)/gpg-agent.app : $(OBJECT_DIR)/gpg-agent-deps
+$(BIN_DIR)/gpg-agent.app : $(OBJECT_DIR)/gpg-agent-deps $(BIN_DIR)/keychain-interpose.dylib
 	install -m u=rwx "$</gpg-agent" $(BIN_DIR)/gpg-agent
 	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) --skip-signing
 	mkdir -p "$@/Contents/Frameworks"
 	find "$<" -name "*.dylib" -exec cp -f "{}" "$@/Contents/Frameworks" \;
+	install -m u=rw $(BIN_DIR)/keychain-interpose.dylib "$@/Contents/Frameworks"
+	ln -s -f "./gpg-agent" "$@/Contents/MacOS/migrate-keys"
+	ln -s -f "./gpg-agent" "$@/Contents/MacOS/pinentry-wrapper"
 	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) $(IDENTITY) --sign-only
 
-bundle : $(BIN_DIR)/migrate-keys.app $(BIN_DIR)/gpg-agent.app
+bundle : $(BIN_DIR)/gpg-agent.app
 
 clean-bundle :
 	rm -Rf $(BIN_DIR)/*.app
@@ -113,6 +109,6 @@ $(GNUPGHOME)/% : $(BIN_DIR)/%.app
 	cp -R "$<" "$(dir $@)bundles/$(notdir $@).app"
 	ln -s -f "$(dir $@)bundles/$(notdir $@).app/Contents/MacOS/$(notdir $@)" "$@"
 
-install : $(GNUPGHOME)/keychain-interpose.dylib $(GNUPGHOME)/migrate-keys $(GNUPGHOME)/gpg-agent
+install : $(GNUPGHOME)/keychain-interpose.dylib $(GNUPGHOME)/gpg-agent
 
 .PHONY : all bundle test clean clean-bundle clean-deps install

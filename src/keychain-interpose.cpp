@@ -17,6 +17,7 @@
 
 import cathyjf.ki.common;
 import cathyjf.ki.log;
+import cathyjf.ki.migrate_keys;
 
 namespace {
 
@@ -166,11 +167,24 @@ int my_gpgrt_fclose(gpgrt_stream_t any_stream) {
     return 0;
 }
 
+int my_gpgrt_argparse(gpgrt_stream_t fp, gpgrt_argparse_t *arg, gpgrt_opt_t *opts) {
+    static const auto is_migrate_keys = ([&arg]() {
+        const auto argv0 = std::filesystem::path{ (*arg->argv)[0] }.filename();
+        return ((argv0 == "migrate-keys") || (argv0 == "pinentry-wrapper"));
+    })();
+    if (!is_migrate_keys) {
+        return gpgrt_argparse(fp, arg, opts);
+    }
+    exit(migrate_keys_main(*arg->argc, *arg->argv));
+    return 0;
+}
+
 DYLD_INTERPOSE(my_gpgrt_fopen, gpgrt_fopen);
 DYLD_INTERPOSE(my_gpgrt_fseek, gpgrt_fseek);
 DYLD_INTERPOSE(my_gpgrt_fread, gpgrt_fread);
 DYLD_INTERPOSE(my_gpgrt_read_line, gpgrt_read_line);
 DYLD_INTERPOSE(my_gpgrt_fclose, gpgrt_fclose);
+DYLD_INTERPOSE(my_gpgrt_argparse, gpgrt_argparse);
 
 __attribute__((constructor))
 void initialize(int argc, const char **argv) {

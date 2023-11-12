@@ -2,4 +2,4 @@
 
 SCRIPT_DIR="$(dirname $(readlink -f "$0"))"
 export DYLD_INSERT_LIBRARIES="$SCRIPT_DIR/../bin/keychain-interpose.dylib"
-exec "$SCRIPT_DIR/../bin/gpg-agent.app/Contents/MacOS/pinentry-wrapper" $@
+exec "$SCRIPT_DIR/../bin/gpg-agent.app/Contents/MacOS/migrate-keys" $@

@@ -5,6 +5,7 @@ CPPFLAGS := $(CPPFLAGS_MINIMAL) $(shell pkg-config --cflags fmt gpg-error) -Idep
 	-I$(shell brew --prefix boost)/include
 OBJCFLAGS := -fobjc-arc -Wno-unused-but-set-variable
 LIBCF++ := dependencies/libCF++/Build/lib/libCF++.a
+LIBOTOOL := $(OBJECT_DIR)/libotool.a
 LDFLAGS := -fuse-ld=lld -framework Security -framework CoreFoundation $(shell brew --prefix fmt)/lib/libfmt.a \
 	$(shell brew --prefix boost)/lib/libboost_program_options.a
 MODULE_OBJECTS := $(addprefix $(OBJECT_DIR)/, cathyjf.ki.common.pcm cathyjf.ki.log.pcm)
@@ -19,7 +20,9 @@ CODESIGN = HIDE_CODESIGN_EXPLANATION=1 src/meta/codesign.sh $(1) "$(IDENTITY)" "
 
 # Homebrew's version of clang is required because we use C++ standard modules.
 # Apple's clang does not currently support the standard version of modules.
-CXX = $(eval value := $(shell src/meta/print-compiler.sh))$(value)
+CC = $(eval value := $(shell src/meta/print-compiler.sh))$(value)
+CXX := $(CC)++
+LIBTOOL := $(shell brew --prefix llvm)/bin/llvm-libtool-darwin
 
 all : $(BINARIES)
 
@@ -63,7 +66,19 @@ $(OBJECT_DIR)/%.o : $(OBJECT_DIR)/%.pcm
 # Dependencies
 
 $(LIBCF++) : dependencies/libCF++
-	make -C $^ CXX="$(CXX)" LIBTOOL="$(shell brew --prefix llvm)/bin/llvm-libtool-darwin"
+	make -C $^ CXX="$(CXX)" LIBTOOL="$(LIBTOOL)"
+
+CCTOOLS_DIR := dependencies/cctools
+OTOOL_OBJECTS := $(patsubst %.c, %.o, \
+	$(wildcard $(CCTOOLS_DIR)/otool/*.c) $(wildcard $(CCTOOLS_DIR)/libstuff/*.c))
+$(CCTOOLS_DIR)/%.o : $(CCTOOLS_DIR)/%.c
+	$(CC) -o $@ $< -c -Wno-macro-redefined -Wno-deprecated-declarations -Wno-deprecated-non-prototype \
+		-O3 -flto -I$(CCTOOLS_DIR)/include -I$(CCTOOLS_DIR)/include/stuff
+$(LIBOTOOL) : $(OTOOL_OBJECTS) | $(OBJECT_DIR)
+	$(LIBTOOL) -static -o $@ $^
+
+clean-libotool :
+	rm -f $(OTOOL_OBJECTS)
 
 #################
 # App bundles
@@ -90,6 +105,7 @@ clean :
 
 clean-deps:
 	make -C dependencies/libCF++ clean
+	make clean-libotool
 
 sign-gpg-agent-binary : $(OBJECT_DIR)/gpg-agent-entitlements.plist
 	@$(call CODESIGN, "$(shell which gpg-agent)", --entitlements "$<")
@@ -114,4 +130,5 @@ $(GNUPGHOME)/% : $(BIN_DIR)/%.app
 
 install : $(GNUPGHOME)/keychain-interpose.dylib $(GNUPGHOME)/migrate-keys $(GNUPGHOME)/gpg-agent
 
-.PHONY : all bundle test clean clean-bundle clean-deps sign-gpg-agent sign-gpg-agent-deps sign-gpg-agent-binary install
+.PHONY : all bundle test clean clean-bundle clean-libotool clean-deps \
+	sign-gpg-agent sign-gpg-agent-deps sign-gpg-agent-binary install

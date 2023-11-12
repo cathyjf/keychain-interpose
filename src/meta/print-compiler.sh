@@ -1,6 +1,6 @@
 #!/bin/sh
 
-BREW_CLANG="$(brew --prefix)/opt/llvm/bin/clang++"
+BREW_CLANG="$(brew --prefix)/opt/llvm/bin/clang"
 if [ -x "$BREW_CLANG" ]; then
     echo "$BREW_CLANG"
 else

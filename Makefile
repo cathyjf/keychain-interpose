@@ -81,7 +81,7 @@ $(OBJECT_DIR)/gpg-agent-deps : $(BIN_DIR)/encapsulate-app $(OBJECT_DIR)/gpg-agen
 #################
 # App bundles
 
-$(BIN_DIR)/migrate-keys.app : | $(BIN_DIR)/migrate-keys
+$(BIN_DIR)/migrate-keys.app : $(BIN_DIR)/migrate-keys
 	src/meta/make-bundle.sh "migrate-keys" $(BIN_DIR) $(OBJECT_DIR) $(IDENTITY)
 
 $(BIN_DIR)/gpg-agent.app : $(OBJECT_DIR)/gpg-agent-deps

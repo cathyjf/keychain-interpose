@@ -3,4 +3,4 @@
 bin
 objects
 
-testing/keychain-interpose.log
+testing/*.log

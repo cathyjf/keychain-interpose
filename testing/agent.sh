@@ -10,4 +10,6 @@ export KEYCHAIN_INTERPOSE_LOG_FILE_PATH
 export DYLD_INSERT_LIBRARIES
 
 set -x
-exec "$SCRIPT_DIR/../bin/gpg-agent.app/Contents/MacOS/gpg-agent" $@
+exec "$SCRIPT_DIR/../bin/gpg-agent.app/Contents/MacOS/gpg-agent" \
+    --pinentry-program "$(which pinentry-touchid)" \
+    --log-file "$SCRIPT_DIR/gpg-agent.log" --debug-level guru $@

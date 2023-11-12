@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if [ -z "$FORCE_CODESIGN" ] && codesign -d --verbose "$1" 2>&1 | grep -q "flags=0x10000(runtime)"; then
+if [ -n "$SKIP_CODESIGN" ] && codesign -d --verbose "$1" 2>&1 | grep -q "flags=0x10000(runtime)"; then
     exit
 fi
 
@@ -10,7 +10,7 @@ if [ -x "$LOCKFILE_BIN" ]; then
     "$LOCKFILE_BIN" -1 -l 10 "$CODESIGNING_LOCKFILE"
 fi
 
-if [ -z "$HIDE_CODESIGN_EXPLANATION" ]; then
+if [ -n "$SHOW_CODESIGN_EXPLANATION" ]; then
     echo
     echo "We need to sign $1 with identity $2.";
     echo "This should only be required in one of the following two cases: ";

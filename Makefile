@@ -10,12 +10,13 @@ LDFLAGS := -fuse-ld=lld -framework Security -framework CoreFoundation $(shell br
 MODULE_OBJECTS := $(addprefix $(OBJECT_DIR)/, cathyjf.ki.common.pcm cathyjf.ki.log.pcm)
 MIGRATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o cathyjf.ki.common.o biometric-auth.o)
 DYLIB_OBJECTS := $(addprefix $(OBJECT_DIR)/, keychain-interpose.o cathyjf.ki.common.o cathyjf.ki.log.o)
-OBJECTS := $(MIGRATE_OBJECTS) $(DYLIB_OBJECTS) $(MODULE_OBJECTS)
-BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys keychain-interpose.dylib)
+ENCAPSULATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, encapsulate-app.o)
+OBJECTS := $(MODULE_OBJECTS) $(MIGRATE_OBJECTS) $(DYLIB_OBJECTS) $(ENCAPSULATE_OBJECTS)
+BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys keychain-interpose.dylib encapsulate-app)
 IDENTITY = $(eval value := $(shell security find-identity -v -p codesigning | grep -o "[A-F0-9]\{25,\}"))$(value)
 TEAM_ID := KVRBCYNMT7
 GNUPGHOME = $(eval value := $(shell printf $$GNUPGHOME))$(value)
-CODESIGN = HIDE_CODESIGN_EXPLANATION=1 src/meta/codesign.sh $(1) "$(IDENTITY)" "$(2)"
+CODESIGN = src/meta/codesign.sh $(1) "$(IDENTITY)" "$(2)"
 
 # Homebrew's version of clang is required because we use C++ standard modules.
 # Apple's clang does not currently support the standard version of modules.
@@ -23,13 +24,16 @@ CXX = $(eval value := $(shell src/meta/print-compiler.sh))$(value)
 
 all : $(BINARIES)
 
-$(BIN_DIR)/keychain-interpose.dylib : $(DYLIB_OBJECTS) $(LIBCF++)
-	$(CXX) -dynamiclib $^ -o $@ $(CPPFLAGS) $(LDFLAGS) $(shell pkg-config --libs gpg-error)
+$(BIN_DIR)/keychain-interpose.dylib : $(DYLIB_OBJECTS) $(LIBCF++) | $(OBJECT_DIR)/gpg-agent-deps
+	$(CXX) -dynamiclib $^ -o $@ $(CPPFLAGS) $(LDFLAGS) $(OBJECT_DIR)/gpg-agent-deps/libgpg-error*.dylib
 	$(call CODESIGN, $@)
 
 $(BIN_DIR)/migrate-keys : $(MIGRATE_OBJECTS) $(LIBCF++) | $(OBJECT_DIR)/migrate-keys-entitlements.plist
 	$(CXX) $^ -o $@ $(CPPFLAGS) $(LDFLAGS) -framework LocalAuthentication -framework Foundation
 	$(call CODESIGN, $@, --entitlements "$(OBJECT_DIR)/migrate-keys-entitlements.plist")
+
+$(BIN_DIR)/encapsulate-app : $(ENCAPSULATE_OBJECTS)
+	$(CXX) $^ -o $@ $(CPPFLAGS) $(LDFLAGS) $(shell brew --prefix boost)/lib/libboost_regex.a
 
 $(OBJECT_DIR)/%.o : src/%.cpp
 	$(CXX) -c $^ -o $@ $(CPPFLAGS)
@@ -65,15 +69,27 @@ $(OBJECT_DIR)/%.o : $(OBJECT_DIR)/%.pcm
 $(LIBCF++) : dependencies/libCF++
 	make -C $^ CXX="$(CXX)" LIBTOOL="$(shell brew --prefix llvm)/bin/llvm-libtool-darwin"
 
+clean-deps:
+	make -C dependencies/libCF++ clean
+
+$(OBJECT_DIR)/gpg-agent-deps : $(BIN_DIR)/encapsulate-app $(OBJECT_DIR)/gpg-agent-entitlements.plist
+	mkdir -p $@
+	$(BIN_DIR)/encapsulate-app "$(shell brew --prefix gnupg)/bin/gpg-agent" "$@"
+	$(call CODESIGN, "$@/gpg-agent", --entitlements $(OBJECT_DIR)/gpg-agent-entitlements.plist)
+	export FORCE_CODESIGN=1; find "$@" -name "*.dylib" -exec $(call CODESIGN, {}) \;
+
 #################
 # App bundles
 
 $(BIN_DIR)/migrate-keys.app : | $(BIN_DIR)/migrate-keys
 	src/meta/make-bundle.sh "migrate-keys" $(BIN_DIR) $(OBJECT_DIR) $(IDENTITY)
 
-$(BIN_DIR)/gpg-agent.app : | sign-gpg-agent
-	install -m u=rwx "$(shell which gpg-agent)" $(BIN_DIR)/gpg-agent
-	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) $(IDENTITY)
+$(BIN_DIR)/gpg-agent.app : $(OBJECT_DIR)/gpg-agent-deps
+	install -m u=rwx "$</gpg-agent" $(BIN_DIR)/gpg-agent
+	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) --skip-signing
+	mkdir -p "$@/Contents/Frameworks"
+	find "$<" -name "*.dylib" -exec cp -f "{}" "$@/Contents/Frameworks" \;
+	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) $(IDENTITY) --sign-only
 
 bundle : $(BIN_DIR)/migrate-keys.app $(BIN_DIR)/gpg-agent.app
 
@@ -88,21 +104,6 @@ test : $(BIN_DIR)/keychain-interpose.dylib $(BIN_DIR)/gpg-agent.app
 clean :
 	rm -Rf $(OBJECT_DIR) $(BIN_DIR)
 
-clean-deps:
-	make -C dependencies/libCF++ clean
-
-sign-gpg-agent-binary : $(OBJECT_DIR)/gpg-agent-entitlements.plist
-	@$(call CODESIGN, "$(shell which gpg-agent)", --entitlements "$<")
-
-sign-gpg-agent-deps :
-	@$(call CODESIGN, "$(shell brew --prefix libgcrypt)/lib/libgcrypt.dylib")
-	@$(call CODESIGN, "$(shell brew --prefix libassuan)/lib/libassuan.dylib")
-	@$(call CODESIGN, "$(shell brew --prefix npth)/lib/libnpth.dylib")
-	@$(call CODESIGN, "$(shell brew --prefix libgpg-error)/lib/libgpg-error.dylib")
-	@$(call CODESIGN, "$(shell brew --prefix gettext)/lib/libintl.dylib")
-
-sign-gpg-agent : sign-gpg-agent-deps sign-gpg-agent-binary
-
 $(GNUPGHOME)/keychain-interpose.dylib : $(BIN_DIR)/keychain-interpose.dylib
 	install -m u=rw $< $@
 
@@ -114,4 +115,4 @@ $(GNUPGHOME)/% : $(BIN_DIR)/%.app
 
 install : $(GNUPGHOME)/keychain-interpose.dylib $(GNUPGHOME)/migrate-keys $(GNUPGHOME)/gpg-agent
 
-.PHONY : all bundle test clean clean-bundle clean-deps sign-gpg-agent sign-gpg-agent-deps sign-gpg-agent-binary install
+.PHONY : all bundle test clean clean-bundle clean-deps install

@@ -1,10 +1,11 @@
-OBJECT_DIR := objects
-BIN_DIR := bin
-CPPFLAGS_MINIMAL := -std=c++20 -O3 -flto -Wall -Werror -fprebuilt-module-path="$(OBJECT_DIR)"
+BUILD_DIR := .
+OBJECT_DIR := $(BUILD_DIR)/objects
+BIN_DIR := $(BUILD_DIR)/bin
+CPPFLAGS_MINIMAL := -std=c++20 -O3 -flto -Wall -Werror -fprebuilt-module-path="$(OBJECT_DIR)" $(CPPFLAGS_EXTRA)
 CPPFLAGS := $(CPPFLAGS_MINIMAL) $(shell pkg-config --cflags fmt gpg-error) -Idependencies/libCF++/CF++/include \
 	-I$(shell brew --prefix boost)/include
 OBJCFLAGS := -fobjc-arc -Wno-unused-but-set-variable
-LIBCF++ := dependencies/libCF++/Build/lib/libCF++.a
+LIBCF++ := dependencies/libCF++/$(BUILD_DIR)/Build/lib/libCF++.a
 LDFLAGS := -fuse-ld=lld -framework Security -framework CoreFoundation $(shell brew --prefix fmt)/lib/libfmt.a \
 	$(shell brew --prefix boost)/lib/libboost_program_options.a
 MODULE_OBJECTS := $(addprefix $(OBJECT_DIR)/, cathyjf.ki.common.pcm cathyjf.ki.log.pcm)
@@ -12,7 +13,7 @@ MIGRATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o cathyjf.ki.common.
 DYLIB_OBJECTS := $(addprefix $(OBJECT_DIR)/, keychain-interpose.o cathyjf.ki.common.o cathyjf.ki.log.o)
 ENCAPSULATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, encapsulate-app.o)
 OBJECTS := $(MODULE_OBJECTS) $(MIGRATE_OBJECTS) $(DYLIB_OBJECTS) $(ENCAPSULATE_OBJECTS)
-BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys keychain-interpose.dylib encapsulate-app)
+BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys.app keychain-interpose.dylib gpg-agent.app encapsulate-app)
 IDENTITY = $(eval value := $(shell security find-identity -v -p codesigning | grep -o "[A-F0-9]\{25,\}"))$(value)
 TEAM_ID := KVRBCYNMT7
 GNUPGHOME = $(eval value := $(shell printf $$GNUPGHOME))$(value)
@@ -44,7 +45,7 @@ $(OBJECT_DIR)/%.o : src/%.mm
 $(OBJECTS) : | $(OBJECT_DIR)
 $(BINARIES) : | $(BIN_DIR)
 $(OBJECT_DIR) $(BIN_DIR) :
-	mkdir $@
+	mkdir -p $@
 
 #################
 # Entitlements
@@ -67,7 +68,8 @@ $(OBJECT_DIR)/%.o : $(OBJECT_DIR)/%.pcm
 # Dependencies
 
 $(LIBCF++) : dependencies/libCF++
-	make -C $^ CXX="$(CXX)" LIBTOOL="$(shell brew --prefix llvm)/bin/llvm-libtool-darwin"
+	make -C $^ CXX="$(CXX)" LIBTOOL="$(shell brew --prefix llvm)/bin/llvm-libtool-darwin" \
+		CPPFLAGS_EXTRA="$(CPPFLAGS_EXTRA)" BUILD_DIR="$(BUILD_DIR)"
 
 clean-deps:
 	make -C dependencies/libCF++ clean
@@ -84,17 +86,27 @@ $(OBJECT_DIR)/gpg-agent-deps : $(BIN_DIR)/encapsulate-app $(OBJECT_DIR)/gpg-agen
 $(BIN_DIR)/migrate-keys.app : $(BIN_DIR)/migrate-keys
 	src/meta/make-bundle.sh "migrate-keys" $(BIN_DIR) $(OBJECT_DIR) $(IDENTITY)
 
-$(BIN_DIR)/gpg-agent.app : $(OBJECT_DIR)/gpg-agent-deps
+$(BIN_DIR)/gpg-agent.app : $(OBJECT_DIR)/gpg-agent-deps $(BIN_DIR)/keychain-interpose.dylib
 	install -m u=rwx "$</gpg-agent" $(BIN_DIR)/gpg-agent
 	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) --skip-signing
 	mkdir -p "$@/Contents/Frameworks"
 	find "$<" -name "*.dylib" -exec cp -f "{}" "$@/Contents/Frameworks" \;
+	install -m u=rw  "$(BIN_DIR)/keychain-interpose.dylib" "$@/Contents/Frameworks"
 	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) $(IDENTITY) --sign-only
 
-bundle : $(BIN_DIR)/migrate-keys.app $(BIN_DIR)/gpg-agent.app
+#################
+# Installation
 
-clean-bundle :
-	rm -Rf $(BIN_DIR)/*.app
+$(GNUPGHOME)/% : $(BIN_DIR)/%.app
+	rm -Rf "$(dir $@)bundles/$(notdir $@).app"
+	mkdir -p "$(dir $@)bundles"
+	cp -R "$<" "$(dir $@)bundles/$(notdir $@).app"
+	ln -s -f "$(dir $@)bundles/$(notdir $@).app/Contents/MacOS/$(notdir $@)" "$@"
+
+$(GNUPGHOME)/keychain-interpose.dylib : $(GNUPGHOME)/gpg-agent
+	ln -s -f "$(dir $<)bundles/$(notdir $<).app/Contents/Frameworks/keychain-interpose.dylib" "$@"
+
+install : $(GNUPGHOME)/migrate-keys $(GNUPGHOME)/gpg-agent $(GNUPGHOME)/keychain-interpose.dylib
 
 #################
 
@@ -104,15 +116,6 @@ test : $(BIN_DIR)/keychain-interpose.dylib $(BIN_DIR)/gpg-agent.app
 clean :
 	rm -Rf $(OBJECT_DIR) $(BIN_DIR)
 
-$(GNUPGHOME)/keychain-interpose.dylib : $(BIN_DIR)/keychain-interpose.dylib
-	install -m u=rw $< $@
+clean-all : clean clean-deps
 
-$(GNUPGHOME)/% : $(BIN_DIR)/%.app
-	rm -Rf "$(dir $@)bundles/$(notdir $@).app"
-	mkdir -p "$(dir $@)bundles"
-	cp -R "$<" "$(dir $@)bundles/$(notdir $@).app"
-	ln -s -f "$(dir $@)bundles/$(notdir $@).app/Contents/MacOS/$(notdir $@)" "$@"
-
-install : $(GNUPGHOME)/keychain-interpose.dylib $(GNUPGHOME)/migrate-keys $(GNUPGHOME)/gpg-agent
-
-.PHONY : all bundle test clean clean-bundle clean-deps install
+.PHONY : all bundle test clean clean-all clean-deps install

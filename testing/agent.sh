@@ -11,5 +11,4 @@ export DYLD_INSERT_LIBRARIES
 
 set -x
 exec "$SCRIPT_DIR/../bin/gpg-agent.app/Contents/MacOS/gpg-agent" \
-    --pinentry-program "$SCRIPT_DIR/pinentry-wrapper" \
-    --log-file "$SCRIPT_DIR/gpg-agent.log" --debug-level guru $@
+    --pinentry-program "$SCRIPT_DIR/pinentry-wrapper"

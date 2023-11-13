@@ -1,6 +1,11 @@
 #!/bin/sh -x
 
-AGENT="$(dirname $(readlink -f "$0"))/agent.sh"
+SCRIPT_DIR=$(dirname $(readlink -f "$0"))
+AGENT="$SCRIPT_DIR/agent.sh"
+MIGRATE_KEY_TARGET="../bin/migrate-keys.app/Contents/MacOS/migrate-keys"
+if [ -x "$SCRIPT_DIR/$MIGRATE_KEY_TARGET" ]; then
+    ln -s -f "$MIGRATE_KEY_TARGET" "$SCRIPT_DIR/pinentry-wrapper"
+fi
 
 # make -C ~/git/gnupg -j
 
@@ -11,3 +16,5 @@ eval "$AGENT" --daemon
 git pull
 killall gpg-agent
 wait
+
+rm -f "$SCRIPT_DIR/gpg-agent.log" "$SCRIPT_DIR/pinentry-wrapper"

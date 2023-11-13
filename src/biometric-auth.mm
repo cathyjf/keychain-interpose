@@ -12,7 +12,7 @@ auto authenticate_user(const std::string_view &reason) {
     [context evaluatePolicy:LAPolicyDeviceOwnerAuthentication
             localizedReason:[[NSString alloc] initWithCString:reason.data()
                                                      encoding:NSASCIIStringEncoding]
-                      reply:^(bool success, NSError *error) {
+                      reply:^(BOOL success, NSError *) {
                                 authentication_success = success;
                                 dispatch_semaphore_signal(sema);
                             }];

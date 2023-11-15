@@ -1,5 +1,12 @@
 #!/bin/sh -e
 
+MY_ARCH="$(arch)"
+if [ "$MY_ARCH" != "arm64" ]; then
+    echo "Error: Building universal binaries currently requires arm64" \
+        "but your platform was detected as $MY_ARCH."
+    exit 1
+fi
+
 make_arm64() {
     make CPPFLAGS_EXTRA="-arch arm64" BUILD_DIR="arm64" $@
 }
@@ -14,10 +21,7 @@ make_arm64
 wait
 
 for i in $(find arm64/bin); do
-    if [ ! -f "$i" ]; then
-        # Ignore things that aren't ordinary files.
-        continue
-    elif ! lipo -archs "$i" &> /dev/null; then
+    if [ ! -f "$i" ] || (! lipo -archs "$i" &> /dev/null); then
         # Ignore things that aren't object files.
         continue
     fi

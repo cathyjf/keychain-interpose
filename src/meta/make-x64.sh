@@ -1,4 +1,4 @@
-#!/usr/bin/arch -x86_64 sh -e
+#!/bin/sh -e
 
 # We can compile with the arm64 clang even for the x86_64 target.
 CXX=$(src/meta/print-compiler.sh)
@@ -15,7 +15,7 @@ fi
 eval $($BREW_X64 shellenv)
 
 install_if_needed() {
-    [ -d "$HOMEBREW_PREFIX/opt/$1" ] || brew install "$1";
+    [ -d "$HOMEBREW_PREFIX/opt/$1" ] || arch -x86_64 brew install "$1";
 }
 
 install_if_needed boost

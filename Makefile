@@ -13,7 +13,7 @@ MIGRATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o cathyjf.ki.common.
 DYLIB_OBJECTS := $(addprefix $(OBJECT_DIR)/, keychain-interpose.o cathyjf.ki.common.o cathyjf.ki.log.o)
 ENCAPSULATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, encapsulate-app.o)
 OBJECTS := $(MODULE_OBJECTS) $(MIGRATE_OBJECTS) $(DYLIB_OBJECTS) $(ENCAPSULATE_OBJECTS)
-BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys migrate-keys.app keychain-interpose.dylib gpg-agent.app encapsulate-app)
+BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys keychain-interpose.app keychain-interpose.dylib encapsulate-app)
 IDENTITY = $(eval value := $(shell security find-identity -v -p codesigning | grep -o "[A-F0-9]\{25,\}"))$(value)
 TEAM_ID := KVRBCYNMT7
 GNUPGHOME = $(eval value := $(shell printf $$GNUPGHOME))$(value)
@@ -83,51 +83,40 @@ $(OBJECT_DIR)/gpg-agent-deps : $(BIN_DIR)/encapsulate-app $(OBJECT_DIR)/gpg-agen
 	export FORCE_CODESIGN=1; find "$@" -name "*.dylib" -exec $(call CODESIGN, {}) \;
 
 #################
-# App bundles
+# App bundle
 
-$(BIN_DIR)/migrate-keys.app : $(BIN_DIR)/migrate-keys
-	src/meta/make-bundle.sh "migrate-keys" $(BIN_DIR) $(OBJECT_DIR) $(IDENTITY)
-
-$(BIN_DIR)/gpg-agent.app : $(OBJECT_DIR)/gpg-agent-deps $(BIN_DIR)/keychain-interpose.dylib
-	install -m u=rwx "$</gpg-agent" $(BIN_DIR)/gpg-agent
-	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) --skip-signing
-	mkdir -p "$@/Contents/Frameworks"
-	find "$<" -name "*.dylib" -exec cp -f "{}" "$@/Contents/Frameworks" \;
-	install -m u=rw  "$(BIN_DIR)/keychain-interpose.dylib" "$@/Contents/Frameworks"
+MAKE_AGENT_BUNDLE = \
+	install -m u=rwx $(1)/gpg-agent "$(BIN_DIR)/gpg-agent"; \
+	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) --skip-signing; \
+	mkdir -p $(2)/Contents/Frameworks; \
+	find $(1) -name "*.dylib" -exec cp -f "{}" $(2)/Contents/Frameworks \; ; \
 	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) $(IDENTITY) --sign-only
+
+$(BIN_DIR)/keychain-interpose.app : $(BIN_DIR)/migrate-keys $(OBJECT_DIR)/gpg-agent-deps $(BIN_DIR)/keychain-interpose.dylib
+	src/meta/make-bundle.sh "migrate-keys" $(BIN_DIR) $(OBJECT_DIR) --skip-signing
+	mkdir -p "$(BIN_DIR)/migrate-keys.app/Contents/Frameworks"
+	install -m u=rw  "$(BIN_DIR)/keychain-interpose.dylib" "$(BIN_DIR)/migrate-keys.app/Contents/Frameworks";
+	$(call MAKE_AGENT_BUNDLE, $(OBJECT_DIR)/gpg-agent-deps, $(BIN_DIR)/gpg-agent.app)
+	mv -f "$(BIN_DIR)/gpg-agent.app" "$(BIN_DIR)/migrate-keys.app/Contents/MacOS/gpg-agent.app"
+	ln -s -f migrate-keys "$(BIN_DIR)/migrate-keys.app/Contents/MacOS/pinentry-wrapper"
+	src/meta/make-bundle.sh "migrate-keys" $(BIN_DIR) $(OBJECT_DIR) $(IDENTITY) --sign-only
+	mv -f "$(BIN_DIR)/migrate-keys.app" "$@"
 
 #################
 # Installation
 
-INSTALL_APP = \
-	set -e; \
-	rm -Rf "$(dir $(1))bundles/$(notdir $(1)).app"; \
-	mkdir -p "$(dir $(1))bundles"; \
-	cp -R $(2) "$(dir $(1))bundles/$(notdir $(1)).app"; \
-	ln -s -f "$(dir $(1))bundles/$(notdir $(1)).app/Contents/MacOS/$(notdir $(1))" $(1)
-
-INSTALL_SYMLINK = \
-	ln -s -f "$(dir $(2))bundles/$(notdir $(2)).app/Contents/Frameworks/keychain-interpose.dylib" $(1)
-
-$(INSTALL_DIR)/% : $(BIN_DIR)/%.app
-	$(call INSTALL_APP, $@, $<)
-
-$(INSTALL_DIR)/keychain-interpose.dylib : $(INSTALL_DIR)/gpg-agent
-	$(call INSTALL_SYMLINK, $@, $<)
-
-install : $(INSTALL_DIR)/migrate-keys $(INSTALL_DIR)/gpg-agent $(INSTALL_DIR)/keychain-interpose.dylib
+install : $(BINARIES)
+	src/meta/install-app.sh "$(BIN_DIR)" "$(INSTALL_DIR)"
 
 universal universal/bin :
 	src/meta/make-universal.sh
 
 install-universal : universal/bin
-	$(call INSTALL_APP, $(INSTALL_DIR)/migrate-keys, $</migrate-keys.app)
-	$(call INSTALL_APP, $(INSTALL_DIR)/gpg-agent, $</gpg-agent.app)
-	$(call INSTALL_SYMLINK, $(INSTALL_DIR)/keychain-interpose.dylib, $(INSTALL_DIR)/gpg-agent)
+	src/meta/install-app.sh "$<" "$(INSTALL_DIR)"
 
 #################
 
-test : $(BIN_DIR)/keychain-interpose.dylib $(BIN_DIR)/gpg-agent.app
+test : $(BINARIES)
 	testing/run-test.sh
 
 clean :

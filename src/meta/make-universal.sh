@@ -31,7 +31,7 @@ is_universal() {
 }
 
 create_universal_binary() {
-    if [ ! -f "$1" ] || (! lipo -archs "$1" &> /dev/null); then
+    if [ ! -f "$1" ] || [ -L "$1" ] || (! lipo -archs "$1" &> /dev/null); then
         # Ignore things that aren't object files.
         return 0
     fi

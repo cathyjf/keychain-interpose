@@ -7,7 +7,10 @@
         <string>MY_TEAM_ID.com.cathyjf.keychain-interpose</string>
     </array>
 
-    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
-    <true/>
+    changequote(`[', `]')
+    ifdef([ALLOW_DYLD], [
+        <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+        <true/>
+    ])
 </dict>
 </plist>

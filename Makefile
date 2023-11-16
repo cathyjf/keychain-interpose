@@ -52,8 +52,11 @@ $(OBJECT_DIR) $(BIN_DIR) :
 #################
 # Entitlements
 
-$(OBJECT_DIR)/%.plist : src/meta/%.plist.m4 | $(OBJECT_DIR)
-	m4 -D MY_TEAM_ID=$(TEAM_ID) "$<" > "$@"
+$(OBJECT_DIR)/migrate-keys-entitlements.plist : src/meta/entitlements.plist.m4 | $(OBJECT_DIR)
+	m4 -D MY_TEAM_ID="$(TEAM_ID)" "$<" > "$@"
+
+$(OBJECT_DIR)/gpg-agent-entitlements.plist : src/meta/entitlements.plist.m4 | $(OBJECT_DIR)
+	m4 -D MY_TEAM_ID="$(TEAM_ID)" -D ALLOW_DYLD="1" "$<" > "$@"
 
 #################
 # Modules

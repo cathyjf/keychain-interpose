@@ -1,4 +1,5 @@
-#!/bin/sh -e
+#!/bin/bash -e
 
-source $(dirname "$0")/env.sh
-exec $brew "$@"
+# shellcheck source-path=SCRIPTDIR
+source "$(dirname "$0")"/env.sh
+exec "${brew:?}" "$@"

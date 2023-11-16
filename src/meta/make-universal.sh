@@ -1,15 +1,16 @@
-#!/bin/sh -e
+#!/bin/bash -e
 
-SCRIPT_DIR="$(dirname $(readlink -f "$0"))"
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 CXX=$(src/meta/print-compiler.sh)
-LIBTOOL=$(dirname $CXX)/llvm-libtool-darwin
+LIBTOOL=$(dirname "$CXX")/llvm-libtool-darwin
 
 make_arch() {
     export HOMEBREW_WRAPPER_ARCH=$1
     build_dir=$2
     shift 2
+    # shellcheck source-path=SCRIPTDIR
     source "$SCRIPT_DIR"/brew/env.sh
-    echo "Using this brew for $HOMEBREW_WRAPPER_ARCH: $brew."
+    echo "Using this brew for $HOMEBREW_WRAPPER_ARCH: ${brew:?}."
     "$SCRIPT_DIR/brew/install.sh" boost
     "$SCRIPT_DIR/brew/install.sh" fmt
     "$SCRIPT_DIR/brew/install.sh" gnupg
@@ -18,6 +19,7 @@ make_arch() {
 }
 
 is_universal() {
+    # shellcheck disable=SC2207
     archs=( $(lipo -archs "$1" | tr " " "\n" | sort) )
     if [ "${#archs[@]}" -ne 2 ]; then
         return 1
@@ -28,31 +30,34 @@ is_universal() {
     fi
 }
 
-make_arm64() { make_arch "arm64" "arm64" $@; }
-make_x86_64() { make_arch "x86_64" "x64" $@; }
+create_universal_binary() {
+    if [ ! -f "$1" ] || (! lipo -archs "$1" &> /dev/null); then
+        # Ignore things that aren't object files.
+        return 0
+    fi
+    other_version=$(printf "%s" "$1" | sed "s/^arm64/x64/")
+    lipo -create "$1" "$other_version" -output "$1.universal"
+    if ! is_universal "$1.universal"; then
+        echo "Failed to make a universal version of $1." 1>&2
+        return 1
+    fi
+    mv -f "$1.universal" "$1"
+    echo "Made $1 universal."
+}
 
-if ! make_arm64 clean-all && make_x86_64 clean-all; then
-    exit $?
-fi
+make_arm64() { make_arch "arm64" "arm64" "$@"; }
+make_x86_64() { make_arch "x86_64" "x64" "$@"; }
 
+make_arm64 clean-all
+make_x86_64 clean-all
 make_arm64 &
 make_x86_64 &
 wait
 
-for i in $(find arm64/bin); do
-    if [ ! -f "$i" ] || (! lipo -archs "$i" &> /dev/null); then
-        # Ignore things that aren't object files.
-        continue
-    fi
-    other_version=$(printf "$i" | sed "s/^arm64/x64/")
-    lipo -create "$i" "$other_version" -output "$i.universal"
-    if ! is_universal "$i.universal"; then
-        echo "Failed to make a universal version of $i."
-        exit 1
-    fi
-    mv -f "$i.universal" "$i"
-    echo "Made $i universal."
-done
+export -f is_universal create_universal_binary
+# Single quotes are intentional here.
+# shellcheck disable=SC2016
+find arm64/bin -print0 | xargs -0 -I{} /bin/bash -e -c 'create_universal_binary "$1"' shell {}
 
 rm -Rf universal x64 arm64/objects
 mv arm64 universal

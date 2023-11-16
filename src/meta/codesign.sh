@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 if [ -n "$SKIP_CODESIGN" ] && codesign -d --verbose "$1" 2>&1 | grep -q "flags=0x10000(runtime)"; then
     exit
@@ -21,13 +21,13 @@ if [ -n "$SHOW_CODESIGN_EXPLANATION" ]; then
     echo "of the two cases above applies, then it is normal that we need to sign this file.";
 fi
 
-set -x
-codesign -f --timestamp --options runtime $3 -s "$2" "$1";
+# shellcheck disable=SC2206
+extra_args=( $3 )
+(set -x; codesign -f --timestamp --options runtime "${extra_args[@]}" -s "$2" "$1")
 RETURN_VALUE=$?
 if [ "$RETURN_VALUE" -ne "0" ]; then
     rm -f "$1"
 fi
-set +x
 
 rm -f "$CODESIGNING_LOCKFILE"
-exit $RETURN_VALUE
+exit "$RETURN_VALUE"

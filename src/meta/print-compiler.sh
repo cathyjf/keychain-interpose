@@ -11,4 +11,5 @@ else
 
     # Return "false" as the compiler to use in the Makefile so that the Makefile does not run.
     echo "false"
+    exit 1
 fi

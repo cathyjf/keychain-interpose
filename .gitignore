@@ -1,4 +1,5 @@
 .DS_Store
+.homebrew
 .vscode
 bin
 objects

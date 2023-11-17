@@ -26,7 +26,7 @@ extra_args=( $3 )
 (set -x; codesign -f --timestamp --options runtime "${extra_args[@]}" -s "$2" "$1")
 RETURN_VALUE=$?
 if [ "$RETURN_VALUE" -ne "0" ]; then
-    rm -f "$1"
+    rm -Rf "${1:?}"
 fi
 
 rm -f "$CODESIGNING_LOCKFILE"

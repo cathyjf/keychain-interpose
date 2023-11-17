@@ -1,6 +1,7 @@
 BUILD_DIR := .
 OBJECT_DIR := $(BUILD_DIR)/objects
 BIN_DIR := $(BUILD_DIR)/bin
+BIN_APP := $(BIN_DIR)/keychain-interpose.app
 CPPFLAGS_MINIMAL := -std=c++20 -O3 -flto -Wall -Werror -fprebuilt-module-path="$(OBJECT_DIR)" $(CPPFLAGS_EXTRA)
 CPPFLAGS := $(CPPFLAGS_MINIMAL) $(shell pkg-config --cflags fmt gpg-error) -Idependencies/libCF++/CF++/include \
 	-I$(shell brew --prefix boost)/include
@@ -14,7 +15,7 @@ DYLIB_OBJECTS := $(addprefix $(OBJECT_DIR)/, keychain-interpose.o cathyjf.ki.com
 ENCAPSULATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, encapsulate-app.o)
 OBJECTS := $(MODULE_OBJECTS) $(MIGRATE_OBJECTS) $(DYLIB_OBJECTS) $(ENCAPSULATE_OBJECTS)
 BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys keychain-interpose.app keychain-interpose.dylib encapsulate-app)
-IDENTITY = $(eval value := $(shell security find-identity -v -p codesigning | grep -o "[A-F0-9]\{25,\}"))$(value)
+IDENTITY = Developer ID Application: Cathy Fitzpatrick (KVRBCYNMT7)
 TEAM_ID := KVRBCYNMT7
 GNUPGHOME = $(eval value := $(shell printf $$GNUPGHOME))$(value)
 INSTALL_DIR := $(GNUPGHOME)
@@ -93,16 +94,16 @@ MAKE_AGENT_BUNDLE = \
 	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) --skip-signing; \
 	mkdir -p $(2)/Contents/Frameworks; \
 	find $(1) -name "*.dylib" -exec cp -f "{}" $(2)/Contents/Frameworks \; ; \
-	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) $(IDENTITY) --sign-only
+	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) "$(IDENTITY)" --sign-only
 
-$(BIN_DIR)/keychain-interpose.app : $(BIN_DIR)/migrate-keys $(OBJECT_DIR)/gpg-agent-deps $(BIN_DIR)/keychain-interpose.dylib
+$(BIN_APP) : $(BIN_DIR)/migrate-keys $(OBJECT_DIR)/gpg-agent-deps $(BIN_DIR)/keychain-interpose.dylib
 	src/meta/make-bundle.sh "migrate-keys" $(BIN_DIR) $(OBJECT_DIR) --skip-signing
 	mkdir -p "$(BIN_DIR)/migrate-keys.app/Contents/Frameworks"
 	install -m u=rw  "$(BIN_DIR)/keychain-interpose.dylib" "$(BIN_DIR)/migrate-keys.app/Contents/Frameworks";
 	$(call MAKE_AGENT_BUNDLE, $(OBJECT_DIR)/gpg-agent-deps, $(BIN_DIR)/gpg-agent.app)
 	mv -f "$(BIN_DIR)/gpg-agent.app" "$(BIN_DIR)/migrate-keys.app/Contents/MacOS/gpg-agent.app"
 	ln -s -f migrate-keys "$(BIN_DIR)/migrate-keys.app/Contents/MacOS/pinentry-wrapper"
-	src/meta/make-bundle.sh "migrate-keys" $(BIN_DIR) $(OBJECT_DIR) $(IDENTITY) --sign-only
+	src/meta/make-bundle.sh "migrate-keys" $(BIN_DIR) $(OBJECT_DIR) "$(IDENTITY)" --sign-only
 	mv -f "$(BIN_DIR)/migrate-keys.app" "$@"
 
 #################
@@ -112,7 +113,11 @@ install : $(BINARIES)
 	src/meta/install-app.sh "$(BIN_DIR)" "$(INSTALL_DIR)"
 
 universal universal/bin :
-	src/meta/make-universal.sh
+	IDENTITY="$(IDENTITY)" src/meta/make-universal.sh
+
+notary : universal/bin
+	src/meta/notarize-app.sh "$</keychain-interpose.app"
+	spctl -vva "$</keychain-interpose.app"
 
 install-universal : universal/bin
 	src/meta/install-app.sh "$<" "$(INSTALL_DIR)"

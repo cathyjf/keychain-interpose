@@ -59,6 +59,12 @@ export -f is_universal create_universal_binary
 # shellcheck disable=SC2016
 find arm64/bin -print0 | xargs -0 -I{} /bin/bash -e -c 'create_universal_binary "$1"' shell {}
 
+# Sign the universal bundles.
+"$SCRIPT_DIR/codesign.sh" "arm64/bin/keychain-interpose.app/Contents/MacOS/gpg-agent.app" \
+    "${IDENTITY:?}" "--entitlements arm64/objects/gpg-agent-entitlements.plist"
+"$SCRIPT_DIR/codesign.sh" "arm64/bin/keychain-interpose.app" \
+    "${IDENTITY:?}" "--entitlements arm64/objects/migrate-keys-entitlements.plist"
+
 rm -Rf universal x64 arm64/objects
 mv arm64 universal
 echo "Moved \`arm64\` to \`universal\`."

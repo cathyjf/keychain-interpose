@@ -13,8 +13,10 @@ MODULE_OBJECTS := $(addprefix $(OBJECT_DIR)/, cathyjf.ki.common.pcm cathyjf.ki.l
 MIGRATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o cathyjf.ki.common.o biometric-auth.o)
 DYLIB_OBJECTS := $(addprefix $(OBJECT_DIR)/, keychain-interpose.o cathyjf.ki.common.o cathyjf.ki.log.o)
 ENCAPSULATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, encapsulate-app.o)
-OBJECTS := $(MODULE_OBJECTS) $(MIGRATE_OBJECTS) $(DYLIB_OBJECTS) $(ENCAPSULATE_OBJECTS)
-BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys keychain-interpose.app keychain-interpose.dylib encapsulate-app)
+PINENTRY_OBJECTS :=  $(addprefix $(OBJECT_DIR)/, pinentry-wrapper.o)
+OBJECTS := $(MODULE_OBJECTS) $(MIGRATE_OBJECTS) $(DYLIB_OBJECTS) $(ENCAPSULATE_OBJECTS) $(PINENTRY_OBJECTS)
+BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys keychain-interpose.app keychain-interpose.dylib \
+	encapsulate-app pinentry-wrapper)
 IDENTITY = Developer ID Application: Cathy Fitzpatrick (KVRBCYNMT7)
 TEAM_ID := KVRBCYNMT7
 GNUPGHOME = $(eval value := $(shell printf $$GNUPGHOME))$(value)
@@ -38,6 +40,10 @@ $(BIN_DIR)/migrate-keys : $(MIGRATE_OBJECTS) $(LIBCF++) | $(OBJECT_DIR)/migrate-
 
 $(BIN_DIR)/encapsulate-app : $(ENCAPSULATE_OBJECTS)
 	$(CXX) $^ -o $@ $(CPPFLAGS) $(LDFLAGS) $(shell brew --prefix boost)/lib/libboost_regex.a
+
+$(BIN_DIR)/pinentry-wrapper : $(PINENTRY_OBJECTS)
+	$(CXX) $^ -o $@ $(CPPFLAGS) $(LDFLAGS)
+	$(call CODESIGN, $@)
 
 $(OBJECT_DIR)/%.o : src/%.cpp
 	$(CXX) -c $^ -o $@ $(CPPFLAGS)
@@ -96,13 +102,14 @@ MAKE_AGENT_BUNDLE = \
 	find $(1) -name "*.dylib" -exec cp -f "{}" $(2)/Contents/Frameworks \; ; \
 	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) "$(IDENTITY)" --sign-only
 
-$(BIN_APP) : $(BIN_DIR)/migrate-keys $(OBJECT_DIR)/gpg-agent-deps $(BIN_DIR)/keychain-interpose.dylib
+$(BIN_APP) : $(BIN_DIR)/migrate-keys $(OBJECT_DIR)/gpg-agent-deps \
+		$(BIN_DIR)/keychain-interpose.dylib $(BIN_DIR)/pinentry-wrapper
 	src/meta/make-bundle.sh "migrate-keys" $(BIN_DIR) $(OBJECT_DIR) --skip-signing
 	mkdir -p "$(BIN_DIR)/migrate-keys.app/Contents/Frameworks"
-	install -m u=rw  "$(BIN_DIR)/keychain-interpose.dylib" "$(BIN_DIR)/migrate-keys.app/Contents/Frameworks";
+	install -m u=rw  "$(BIN_DIR)/keychain-interpose.dylib" "$(BIN_DIR)/migrate-keys.app/Contents/Frameworks"
 	$(call MAKE_AGENT_BUNDLE, $(OBJECT_DIR)/gpg-agent-deps, $(BIN_DIR)/gpg-agent.app)
 	mv -f "$(BIN_DIR)/gpg-agent.app" "$(BIN_DIR)/migrate-keys.app/Contents/MacOS/gpg-agent.app"
-	ln -s -f migrate-keys "$(BIN_DIR)/migrate-keys.app/Contents/MacOS/pinentry-wrapper"
+	install -m u=rwx  "$(BIN_DIR)/pinentry-wrapper" "$(BIN_DIR)/migrate-keys.app/Contents/MacOS"
 	src/meta/make-bundle.sh "migrate-keys" $(BIN_DIR) $(OBJECT_DIR) "$(IDENTITY)" --sign-only
 	mv -f "$(BIN_DIR)/migrate-keys.app" "$@"
 

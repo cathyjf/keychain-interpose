@@ -245,24 +245,9 @@ void throw_if_conflicting_options(const auto &vm, const std::initializer_list<T>
     throw boost::program_options::error{ error };
 }
 
-auto operate_pinentry_wrapper(const int argc, char **argv) {
-    constexpr static auto PINENTRY_TOUCHID = "pinentry-touchid";
-    constexpr static auto PINENTRY_TTY = "pinentry-tty";
-    const auto binary = getenv("SSH_TTY") ? PINENTRY_TTY : PINENTRY_TOUCHID;
-    const auto status = execvp(binary, argv);
-    if ((status != -1) || (binary == PINENTRY_TTY)) {
-        return status;
-    }
-    return execvp(PINENTRY_TTY, argv);
-}
-
 } // anonymous namespace
 
 auto main(const int argc, char **argv) -> int {
-    if (std::filesystem::path{ argv[0] }.filename() == "pinentry-wrapper") {
-        return operate_pinentry_wrapper(argc, argv);
-    }
-
     namespace po = boost::program_options;
     auto desc = po::options_description{ fmt::format("Allowed options for {}", argv[0]) };
     desc.add_options()

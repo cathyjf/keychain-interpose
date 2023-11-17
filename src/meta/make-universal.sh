@@ -10,10 +10,11 @@ make_arch() {
     shift 2
     # shellcheck source-path=SCRIPTDIR
     source "$SCRIPT_DIR"/brew/env.sh
-    echo "Using this brew for $HOMEBREW_WRAPPER_ARCH: ${brew:?}."
-    "$SCRIPT_DIR/brew/install.sh" boost
-    "$SCRIPT_DIR/brew/install.sh" fmt
-    "$SCRIPT_DIR/brew/install.sh" gnupg
+    echo "Using this brew for $HOMEBREW_WRAPPER_ARCH: ${brew[*]:?}."
+    if [ -z "$skip_updates" ]; then
+        "${brew[@]:?}" update --force --quiet
+        "$SCRIPT_DIR/brew/install.sh" "boost" "fmt" "gnupg"
+    fi
     make CPPFLAGS_EXTRA="-arch '$HOMEBREW_WRAPPER_ARCH'" BUILD_DIR="$build_dir" \
         CXX="$CXX" LIBTOOL="$LIBTOOL" "$@"
 }
@@ -48,10 +49,11 @@ create_universal_binary() {
 make_arm64() { make_arch "arm64" "arm64" "$@"; }
 make_x86_64() { make_arch "x86_64" "x64" "$@"; }
 
-make_arm64 clean-all
-make_x86_64 clean-all
-make_arm64 &
-make_x86_64 &
+make_arm64 clean-all &
+make_x86_64 clean-all &
+wait
+skip_updates=1 make_arm64 &
+skip_updates=1 make_x86_64 &
 wait
 
 export -f is_universal create_universal_binary

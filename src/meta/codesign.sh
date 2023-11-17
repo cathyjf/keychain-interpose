@@ -1,11 +1,12 @@
-#!/bin/bash
+#!/bin/bash -ef
+: "${1:?}" "${2:?}"
 
 if [ -n "$SKIP_CODESIGN" ] && codesign -d --verbose "$1" 2>&1 | grep -q "flags=0x10000(runtime)"; then
     exit
 fi
 
 LOCKFILE_BIN=$(which lockfile)
-CODESIGNING_LOCKFILE="codesigning.lock"
+CODESIGNING_LOCKFILE=$(dirname "$0")"/.codesigning.lock"
 if [ -x "$LOCKFILE_BIN" ]; then
     "$LOCKFILE_BIN" -1 -l 10 "$CODESIGNING_LOCKFILE"
 fi
@@ -22,8 +23,8 @@ if [ -n "$SHOW_CODESIGN_EXPLANATION" ]; then
 fi
 
 # shellcheck disable=SC2206
-extra_args=( $3 )
-(set -x; codesign -f --timestamp --options runtime "${extra_args[@]}" -s "$2" "$1")
+IFS=' ' extra_args=( $3 )
+(set -x +e; codesign -f --timestamp --options runtime "${extra_args[@]}" -s "$2" "$1")
 RETURN_VALUE=$?
 if [ "$RETURN_VALUE" -ne "0" ]; then
     rm -Rf "${1:?}"

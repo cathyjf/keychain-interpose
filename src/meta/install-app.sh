@@ -2,6 +2,7 @@
 
 # $1: Directory where keychain-interpose.app was built.
 # $2: Installation directory.
+: "${1:?}" "${2:?}"
 
 APP_NAME="keychain-interpose.app"
 set -x

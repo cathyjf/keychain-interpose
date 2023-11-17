@@ -17,8 +17,9 @@ PINENTRY_OBJECTS :=  $(addprefix $(OBJECT_DIR)/, pinentry-wrapper.o)
 OBJECTS := $(MODULE_OBJECTS) $(MIGRATE_OBJECTS) $(DYLIB_OBJECTS) $(ENCAPSULATE_OBJECTS) $(PINENTRY_OBJECTS)
 BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys keychain-interpose.app keychain-interpose.dylib \
 	encapsulate-app pinentry-wrapper)
-IDENTITY = Developer ID Application: Cathy Fitzpatrick (KVRBCYNMT7)
+IDENTITY := Developer ID Application: Cathy Fitzpatrick (KVRBCYNMT7)
 TEAM_ID := KVRBCYNMT7
+NOTARY_KEYCHAIN_PROFILE := cathyjf
 GNUPGHOME = $(eval value := $(shell printf $$GNUPGHOME))$(value)
 INSTALL_DIR := $(GNUPGHOME)
 CODESIGN = src/meta/codesign.sh $(1) "$(IDENTITY)" "$(2)"
@@ -122,8 +123,8 @@ install : $(BINARIES)
 universal universal/bin :
 	IDENTITY="$(IDENTITY)" src/meta/make-universal.sh
 
-notary : universal/bin
-	src/meta/notarize-app.sh "$</keychain-interpose.app"
+notarize : universal/bin
+	NOTARY_KEYCHAIN_PROFILE="$(NOTARY_KEYCHAIN_PROFILE)" src/meta/notarize-app.sh "$</keychain-interpose.app"
 	spctl -vva "$</keychain-interpose.app"
 
 install-universal : universal/bin

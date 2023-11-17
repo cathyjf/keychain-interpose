@@ -1,10 +1,11 @@
-#!/bin/sh -e
+#!/bin/bash -e
 
 # $1: Name of binary (e.g., "migrate-keys")
 # $2: Name of directory where binaries are built (e.g., "bin")
 # $3: Name of directory where object files are built (e.g., "objects")
 # $4: Code signing identity or "--skip-signing"
 # $5: Empty string or "--sign-only"
+: "${1:?}" "${2:?}" "${3:?}" "${4:?}"
 
 if [ "$5" != "--sign-only" ]; then
     mkdir -p "$2/$1.app/Contents/MacOS"

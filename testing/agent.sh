@@ -10,5 +10,5 @@ export KEYCHAIN_INTERPOSE_LOG_FILE_PATH
 export DYLD_INSERT_LIBRARIES
 
 set -x
-exec "$SCRIPT_DIR/../bin/gpg-agent.app/Contents/MacOS/gpg-agent" \
-    --pinentry-program "$SCRIPT_DIR/pinentry-wrapper"
+exec "$SCRIPT_DIR/../bin/keychain-interpose.app/Contents/MacOS/gpg-agent.app/Contents/MacOS/gpg-agent" \
+    --pinentry-program "$SCRIPT_DIR/../bin/keychain-interpose.app/Contents/MacOS/pinentry-wrapper" $@

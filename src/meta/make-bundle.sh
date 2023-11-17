@@ -9,7 +9,7 @@
 if [ "$5" != "--sign-only" ]; then
     mkdir -p "$2/$1.app/Contents/MacOS"
     m4 -D MY_BINARY_NAME="$1" src/meta/Info.plist.m4 > "$2/$1.app/Contents/Info.plist"
-    install -m u=rw "src/meta/profiles/keychain-interpose-$1.provisionprofile" "$2/$1.app/Contents/embedded.provisionprofile"
+    install -m u=rw "src/meta/profiles/keychain-interpose.provisionprofile" "$2/$1.app/Contents/embedded.provisionprofile"
     install -m u=rwx "$2/$1" "$2/$1.app/Contents/MacOS/$1"
 fi
 

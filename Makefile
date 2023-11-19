@@ -13,8 +13,7 @@ LIBCF++ := dependencies/libCF++/$(BUILD_DIR)/Build/lib/libCF++.a
 LDFLAGS := -fuse-ld=lld -framework Security -framework CoreFoundation $(shell brew --prefix fmt)/lib/libfmt.a \
 	$(shell brew --prefix boost)/lib/libboost_program_options.a
 MODULE_OBJECTS := $(addprefix $(OBJECT_DIR)/, cathyjf.ki.common.pcm cathyjf.ki.log.pcm)
-MIGRATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o cathyjf.ki.common.o \
-	biometric-auth.o open-script.o)
+MIGRATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o cathyjf.ki.common.o migrate-keys-helper.o)
 DYLIB_OBJECTS := $(addprefix $(OBJECT_DIR)/, keychain-interpose.o cathyjf.ki.common.o cathyjf.ki.log.o)
 ENCAPSULATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, encapsulate-app.o)
 PINENTRY_OBJECTS :=  $(addprefix $(OBJECT_DIR)/, pinentry-wrapper.o)

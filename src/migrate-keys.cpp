@@ -18,10 +18,8 @@
 
 import cathyjf.ki.common;
 
-// The `authenticate_user` function is defined in `biometric-auth.mm`.
+// These two functions are defined in `migrate-keys-helper.mm`.
 auto authenticate_user(const std::string_view &) -> bool;
-
-// The `open_script_with_default_terminal` function is defined in `open-script.mm`.
 auto open_script_with_default_terminal(const std::string_view &, const std::string_view &) -> bool;
 
 namespace {

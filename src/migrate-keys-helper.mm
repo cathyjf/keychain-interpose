@@ -4,6 +4,7 @@
 #import <AppKit/NSWorkspace.h>
 #import <CoreServices/CoreServices.h>
 #import <Foundation/Foundation.h>
+#import <LocalAuthentication/LAContext.h>
 #import <iostream>
 #import <string_view>
 
@@ -31,6 +32,21 @@ auto string_from_nsurl(const auto &url) {
 }
 
 } // anonymous namespace
+
+auto authenticate_user(const std::string_view &reason) {
+    auto context = [LAContext new];
+    auto sema = dispatch_semaphore_create(0);
+    __block auto authentication_success = false;
+    [context evaluatePolicy:LAPolicyDeviceOwnerAuthentication
+            localizedReason:[[NSString alloc] initWithCString:reason.data()
+                                                     encoding:NSASCIIStringEncoding]
+                      reply:^(BOOL success, NSError *) {
+                                authentication_success = success;
+                                dispatch_semaphore_signal(sema);
+                            }];
+    dispatch_semaphore_wait(sema, DISPATCH_TIME_FOREVER);
+    return authentication_success;
+}
 
 auto open_script_with_default_terminal(const std::string_view &sample_binary, const std::string_view &script) {
     const auto terminalURL = default_application_for_file(sample_binary);

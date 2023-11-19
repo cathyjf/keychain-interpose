@@ -18,7 +18,7 @@ constexpr auto ENV_VAR_LOG_FILE_PATH = "KEYCHAIN_INTERPOSE_LOG_FILE_PATH";
 
 export void write_log_message(const char *); // Forward declaration for `getDylibPath`.
 
-std::filesystem::path getDylibPath() {
+[[nodiscard]] std::filesystem::path getDylibPath() {
     auto info = Dl_info{};
     if (dladdr(reinterpret_cast<void *>(static_cast<void(*)(const char *)>(write_log_message)), &info)) {
         return info.dli_fname;

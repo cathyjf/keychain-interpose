@@ -24,12 +24,12 @@ auto open_script_with_default_terminal(const std::string_view &, const std::stri
 
 namespace {
 
-auto keychain_has_item(const std::string keygrip) {
+[[nodiscard]] auto keychain_has_item(const std::string keygrip) {
     const auto query = get_keychain_query_for_keygrip(keygrip);
     return (SecItemCopyMatching(query, nullptr) == errSecSuccess);
 }
 
-auto get_string_from_cf_string(const auto string) {
+[[nodiscard]] auto get_string_from_cf_string(const auto string) {
     const auto length = CFStringGetLength(string);
     const auto bytes = std::make_unique<uint8_t[]>(length);
     auto bytes_written = CFIndex{};
@@ -39,7 +39,7 @@ auto get_string_from_cf_string(const auto string) {
     return std::string{ bytes.get(), bytes.get() + bytes_written };
 }
 
-auto get_error_string(const auto status) -> std::string {
+[[nodiscard]] auto get_error_string(const auto status) -> std::string {
     const auto error = keychain_entry::managed_cf_ref<CFStringRef>{
         SecCopyErrorMessageString(status, nullptr) };
     if (!error) {
@@ -48,7 +48,7 @@ auto get_error_string(const auto status) -> std::string {
     return get_string_from_cf_string(error.get());
 }
 
-auto add_key_to_keychain(const std::string keygrip, const auto data) {
+[[nodiscard]] auto add_key_to_keychain(const std::string keygrip, const auto data) {
     auto query = get_keychain_query_for_keygrip(keygrip);
     query << CF::Pair{ kSecUseDataProtectionKeychain, CF::Boolean{ true } };
     query << CF::Pair{ kSecValueData, CF::Data{ data } };
@@ -60,7 +60,7 @@ auto add_key_to_keychain(const std::string keygrip, const auto data) {
     return false;
 }
 
-auto get_all_keys_from_keychain() -> std::optional<std::vector<std::string>> {
+[[nodiscard]] auto get_all_keys_from_keychain() -> std::optional<std::vector<std::string>> {
     auto query = get_keychain_query_for_keygrip(std::nullopt);
     query << CF::Pair{ kSecReturnAttributes, CF::Boolean{ true } };
     query << CF::Pair{ kSecMatchLimit, kSecMatchLimitAll };
@@ -86,14 +86,14 @@ auto get_all_keys_from_keychain() -> std::optional<std::vector<std::string>> {
     return keys;
 }
 
-auto read_entire_file(const auto filename) {
+[[nodiscard]] auto read_entire_file(const auto filename) {
     auto ifs = std::ifstream{ filename };
     auto buffer = std::stringstream{};
     buffer << ifs.rdbuf();
     return buffer.str();
 }
 
-auto get_plural(const auto noun, const auto count) {
+[[nodiscard]] auto get_plural(const auto noun, const auto count) {
     auto buffer = std::stringstream{};
     buffer << count << ' ' << noun;
     if (count > 1) {
@@ -102,11 +102,11 @@ auto get_plural(const auto noun, const auto count) {
     return buffer.str();
 }
 
-auto is_file_placeholder(const auto file) {
+[[nodiscard]] auto is_file_placeholder(const auto file) {
     return (std::filesystem::file_size(file) < 5);
 }
 
-auto is_same_key_in_keychain(const auto data, const auto keygrip) {
+[[nodiscard]] auto is_same_key_in_keychain(const auto data, const auto keygrip) {
     const auto key = get_key_from_keychain<keychain_entry>(keygrip);
     assert((key != nullptr) && "Specified key should already be in the keychain.");
     return std::equal(
@@ -114,7 +114,7 @@ auto is_same_key_in_keychain(const auto data, const auto keygrip) {
         key->password, key->password + key->password_length);
 }
 
-auto write_placeholder(const auto entry) {
+[[nodiscard]] auto write_placeholder(const auto entry) {
     if (std::ofstream{ entry }.is_open()) {
         std::cout << "    Successfully removed the filesystem key and replaced it with a placeholder." << std::endl;
         return true;
@@ -123,7 +123,7 @@ auto write_placeholder(const auto entry) {
     return false;
 }
 
-auto migrate_keys_to_keychain(const auto private_key_path) {
+[[nodiscard]] auto migrate_keys_to_keychain(const auto private_key_path) {
     auto successes = 0;
     auto failures = 0;
     auto replacements = 0;
@@ -179,7 +179,7 @@ auto migrate_keys_to_keychain(const auto private_key_path) {
     return failures;
 }
 
-auto export_keys_from_keychain(const auto private_key_path) {
+[[nodiscard]] auto export_keys_from_keychain(const auto private_key_path) {
     const auto keys = get_all_keys_from_keychain();
     if (!keys) {
         std::cout << "No GPG keys found in keychain. Nothing to do." << std::endl;

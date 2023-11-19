@@ -14,7 +14,7 @@ export module cathyjf.ki.common;
 
 export constexpr auto KEYCHAIN_SERVICE_NAME = "GPG Private Key"sv;
 
-export auto get_keychain_query_for_keygrip(const std::optional<std::string> keygrip) {
+export [[nodiscard]] auto get_keychain_query_for_keygrip(const std::optional<std::string> keygrip) {
     auto query = CF::Dictionary{};
     query << CF::Pair{ kSecClass, kSecClassGenericPassword };
     query << CF::Pair{ kSecAttrService,
@@ -25,7 +25,7 @@ export auto get_keychain_query_for_keygrip(const std::optional<std::string> keyg
     return query;
 }
 
-export std::filesystem::path get_private_key_path() {
+export [[nodiscard]] std::filesystem::path get_private_key_path() {
     static auto gpg_private_key_path = ([]() -> std::filesystem::path {
         auto gnupghome = std::filesystem::path{};
         if (const auto env_p = std::getenv("GNUPGHOME")) {
@@ -63,7 +63,7 @@ export struct keychain_entry {
 };
 
 export template <class T> requires std::is_base_of_v<keychain_entry, T>
-std::unique_ptr<T> get_key_from_keychain(const std::string keygrip) {
+[[nodiscard]] std::unique_ptr<T> get_key_from_keychain(const std::string keygrip) {
     auto query = get_keychain_query_for_keygrip(keygrip);
     query << CF::Pair{ kSecReturnData, CF::Boolean{ true } };
     auto data = CFTypeRef{};

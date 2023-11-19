@@ -25,11 +25,11 @@ typedef std::unique_ptr<FILE *, file_closer> managed_file;
 
 const auto otool_dylib_regex = boost::regex{ "^\\h+(.*)\\h+\\(.*" };
 
-auto escape_shell_argument_single_quotes(const auto argument) {
+[[nodiscard]] auto escape_shell_argument_single_quotes(const auto argument) {
     return boost::replace_all_copy(argument, "'", "'\"'\"'");
 }
 
-auto get_dylibs_from_otool(const auto binary_file) {
+[[nodiscard]] auto get_dylibs_from_otool(const auto binary_file) {
     auto objects = std::set<std::string>{};
     const auto escaped_file = escape_shell_argument_single_quotes(binary_file);
     const auto file = managed_file{ popen(fmt::format("otool -L '{}'", escaped_file).c_str(), "r") };
@@ -61,12 +61,12 @@ auto &populate_objects(const auto binary_file, auto &objects, const int depth = 
     return objects;
 }
 
-auto make_relative_path(const auto &target) {
+[[nodiscard]] auto make_relative_path(const auto &target) {
     return fmt::format("@executable_path/../Frameworks/{}",
         std::filesystem::path{ target }.filename().string());
 }
 
-auto copy_objects_and_create_map(const auto &objects, const auto destination) {
+[[nodiscard]] auto copy_objects_and_create_map(const auto &objects, const auto destination) {
     struct dylib_data {
         std::string target_path;
         std::string relative_target_path;

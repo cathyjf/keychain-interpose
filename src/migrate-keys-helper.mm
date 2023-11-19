@@ -14,26 +14,26 @@
 
 namespace {
 
-auto nsurl_from_string_view(const std::string_view &string) {
+[[nodiscard]] auto nsurl_from_string_view(const std::string_view &string) {
     return [NSURL
         fileURLWithPath:[[NSString alloc] initWithCString:string.data()
                                                  encoding:NSASCIIStringEncoding]
             isDirectory:NO];
 }
 
-auto default_application_for_file(const auto &filename) {
+[[nodiscard]] auto default_application_for_file(const auto &filename) {
     return [[NSWorkspace sharedWorkspace]
         URLForApplicationToOpenURL:nsurl_from_string_view(filename)];
 }
 
-auto string_from_nsurl(const auto &url) {
+[[nodiscard]] auto string_from_nsurl(const auto &url) {
     const auto data = [url dataRepresentation];
     return std::string{ static_cast<const char *>(data.bytes), data.length };
 }
 
 } // anonymous namespace
 
-auto authenticate_user(const std::string_view &reason) {
+[[nodiscard]] auto authenticate_user(const std::string_view &reason) {
     auto context = [LAContext new];
     auto sema = dispatch_semaphore_create(0);
     __block auto authentication_success = false;
@@ -48,7 +48,7 @@ auto authenticate_user(const std::string_view &reason) {
     return authentication_success;
 }
 
-auto open_script_with_default_terminal(const std::string_view &sample_binary, const std::string_view &script) {
+[[nodiscard]] auto open_script_with_default_terminal(const std::string_view &sample_binary, const std::string_view &script) {
     const auto terminalURL = default_application_for_file(sample_binary);
     if (terminalURL == nil) {
         return false;

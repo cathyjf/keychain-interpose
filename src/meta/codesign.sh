@@ -1,4 +1,6 @@
 #!/bin/bash -ef
+# SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 : "${1:?}" "${2:?}"
 
 if [ -n "$SKIP_CODESIGN" ] && codesign -d --verbose "$1" 2>&1 | grep -q "flags=0x10000(runtime)"; then

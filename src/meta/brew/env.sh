@@ -1,4 +1,6 @@
 #!/bin/bash -e
+# SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 unset HOMEBREW_REPOSITORY
 unset HOMEBREW_CELLAR

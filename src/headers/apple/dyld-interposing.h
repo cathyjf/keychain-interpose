@@ -1,4 +1,7 @@
 /*
+ * SPDX-FileCopyrightText: 2005-2008 Apple Computer, Inc.
+ * SPDX-License-Identifier: APSL-2.0
+ *
  * Copyright (c) 2005-2008 Apple Computer, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@

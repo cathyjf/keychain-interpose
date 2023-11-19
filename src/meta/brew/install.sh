@@ -1,4 +1,6 @@
 #!/bin/bash -ef
+# SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 : "${HOMEBREW_WRAPPER_ARCH:=$(arch)}"
 case "$HOMEBREW_WRAPPER_ARCH" in

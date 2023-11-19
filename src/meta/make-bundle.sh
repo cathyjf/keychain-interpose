@@ -1,4 +1,6 @@
 #!/bin/bash -e
+# SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 # $1: Name of binary (e.g., "migrate-keys")
 # $2: Name of directory where binaries are built (e.g., "bin")

@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 BREW_CLANG="$(brew --prefix)/opt/llvm/bin/clang++"
 if [ -x "$BREW_CLANG" ]; then

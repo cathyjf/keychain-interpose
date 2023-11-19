@@ -1,4 +1,6 @@
 #!/bin/bash -e
+# SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 CXX=$(src/meta/print-compiler.sh)

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 BUILD_DIR := .
 OBJECT_DIR := $(BUILD_DIR)/objects
 BIN_DIR := $(BUILD_DIR)/bin

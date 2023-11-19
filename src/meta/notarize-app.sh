@@ -1,4 +1,6 @@
 #!/bin/bash -e
+# SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 if [ ! -d "$1" ] || { ! codesign --deep --verify --strict "$1"; }; then
     echo "Error: $1 should be a signed app bundle but is not." 1>&2

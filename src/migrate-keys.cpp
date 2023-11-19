@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include <filesystem>
 #include <fstream>
 #include <iostream>

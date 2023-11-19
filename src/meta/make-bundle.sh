@@ -11,12 +11,16 @@
 
 if [ "$5" != "--sign-only" ]; then
     mkdir -p "$2/$1.app/Contents/MacOS"
-    m4 -D MY_BINARY_NAME="$1" src/meta/Info.plist.m4 > "$2/$1.app/Contents/Info.plist"
-    install -m u=rw "src/meta/profiles/keychain-interpose.provisionprofile" "$2/$1.app/Contents/embedded.provisionprofile"
-    install -m u=rwx "$2/$1" "$2/$1.app/Contents/MacOS/$1"
+    (
+        set -x
+        m4 -D MY_BINARY_NAME="$1" src/meta/Info.plist.m4 > "$2/$1.app/Contents/Info.plist"
+        install -m u=rw "src/meta/profiles/keychain-interpose.provisionprofile" \
+            "$2/$1.app/Contents/embedded.provisionprofile"
+        install -m u=rwx "$2/$1" "$2/$1.app/Contents/MacOS/$1"
+    )
 fi
 
 if [ "$4" != "--skip-signing" ]; then
     SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-    FORCE_CODESIGN=1 "$SCRIPT_DIR/codesign.sh" "$2/$1.app" "$4" "--entitlements $3/$1-entitlements.plist"
+    "$SCRIPT_DIR/codesign.sh" "$2/$1.app" "$4" "--entitlements $3/$1-entitlements.plist"
 fi

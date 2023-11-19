@@ -13,7 +13,8 @@ LIBCF++ := dependencies/libCF++/$(BUILD_DIR)/Build/lib/libCF++.a
 LDFLAGS := -fuse-ld=lld -framework Security -framework CoreFoundation $(shell brew --prefix fmt)/lib/libfmt.a \
 	$(shell brew --prefix boost)/lib/libboost_program_options.a
 MODULE_OBJECTS := $(addprefix $(OBJECT_DIR)/, cathyjf.ki.common.pcm cathyjf.ki.log.pcm)
-MIGRATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o cathyjf.ki.common.o biometric-auth.o)
+MIGRATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o cathyjf.ki.common.o \
+	biometric-auth.o open-script.o)
 DYLIB_OBJECTS := $(addprefix $(OBJECT_DIR)/, keychain-interpose.o cathyjf.ki.common.o cathyjf.ki.log.o)
 ENCAPSULATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, encapsulate-app.o)
 PINENTRY_OBJECTS :=  $(addprefix $(OBJECT_DIR)/, pinentry-wrapper.o)
@@ -39,7 +40,8 @@ $(BIN_DIR)/keychain-interpose.dylib : $(DYLIB_OBJECTS) $(LIBCF++) | $(OBJECT_DIR
 	$(call CODESIGN, $@)
 
 $(BIN_DIR)/migrate-keys : $(MIGRATE_OBJECTS) $(LIBCF++) | $(OBJECT_DIR)/migrate-keys-entitlements.plist
-	$(CXX) $^ -o $@ $(CPPFLAGS) $(LDFLAGS) -framework LocalAuthentication -framework Foundation
+	$(CXX) $^ -o $@ $(CPPFLAGS) $(LDFLAGS) -framework LocalAuthentication -framework Foundation \
+		-framework CoreServices -framework AppKit
 	$(call CODESIGN, $@, --entitlements "$(OBJECT_DIR)/migrate-keys-entitlements.plist")
 
 $(BIN_DIR)/encapsulate-app : $(ENCAPSULATE_OBJECTS)
@@ -107,14 +109,18 @@ MAKE_AGENT_BUNDLE = \
 	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) "$(IDENTITY)" --sign-only
 
 $(BIN_APP) : $(BIN_DIR)/migrate-keys $(OBJECT_DIR)/gpg-agent-deps \
-		$(BIN_DIR)/keychain-interpose.dylib $(BIN_DIR)/pinentry-wrapper
+		$(BIN_DIR)/keychain-interpose.dylib $(BIN_DIR)/pinentry-wrapper \
+		src/resources/help-message.sh
 	src/meta/make-bundle.sh "migrate-keys" $(BIN_DIR) $(OBJECT_DIR) --skip-signing
 	mkdir -p "$(BIN_DIR)/migrate-keys.app/Contents/Frameworks"
 	install -m u=rw  "$(BIN_DIR)/keychain-interpose.dylib" "$(BIN_DIR)/migrate-keys.app/Contents/Frameworks"
 	$(call MAKE_AGENT_BUNDLE, $(OBJECT_DIR)/gpg-agent-deps, $(BIN_DIR)/gpg-agent.app)
 	mv -f "$(BIN_DIR)/gpg-agent.app" "$(BIN_DIR)/migrate-keys.app/Contents/MacOS/gpg-agent.app"
 	install -m u=rwx  "$(BIN_DIR)/pinentry-wrapper" "$(BIN_DIR)/migrate-keys.app/Contents/MacOS"
+	mkdir -p "$(BIN_DIR)/migrate-keys.app/Contents/Resources"
+	install -m u=rwx  "src/resources/help-message.sh" "$(BIN_DIR)/migrate-keys.app/Contents/Resources"
 	src/meta/make-bundle.sh "migrate-keys" $(BIN_DIR) $(OBJECT_DIR) "$(IDENTITY)" --sign-only
+	rm -Rf "./$@"
 	mv -f "$(BIN_DIR)/migrate-keys.app" "$@"
 
 #################
@@ -131,6 +137,7 @@ notarize : universal/bin
 	spctl -vva "$</keychain-interpose.app"
 
 install-universal : universal/bin
+	make notarize
 	src/meta/install-app.sh "$<" "$(INSTALL_DIR)"
 
 #################
@@ -143,4 +150,4 @@ clean :
 
 clean-all : clean clean-deps
 
-.PHONY : all bundle test clean clean-all clean-deps install install-universal
+.PHONY : all bundle test clean clean-all clean-deps install notarize install-universal

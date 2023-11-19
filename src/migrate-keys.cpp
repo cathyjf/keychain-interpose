@@ -21,6 +21,9 @@ import cathyjf.ki.common;
 // The `authenticate_user` function is defined in `biometric-auth.mm`.
 auto authenticate_user(const std::string_view &) -> bool;
 
+// The `open_script_with_default_terminal` function is defined in `open-script.mm`.
+auto open_script_with_default_terminal(const std::string_view &, const std::string_view &) -> bool;
+
 namespace {
 
 auto keychain_has_item(const std::string keygrip) {
@@ -295,6 +298,17 @@ auto main(const int argc, char **argv) -> int {
         return migrate_keys_to_keychain(private_key_path);
     } else if (vm.count("export-from-keychain")) {
         return export_keys_from_keychain(private_key_path);
+    }
+
+    if ((getppid() == 1) && !isatty(fileno(stdout)) && !isatty(fileno(stderr)) && !isatty(fileno(stdin))) {
+        // If our parent process is launchd (pid of 1), this probably means that the user
+        // double-clicked on this app in the Finder, or opened it using open(1). If none
+        // of {stdout, stderr, stdin} is connected to a TTY, we'll open the Terminal
+        // application for the user and display a helpful message, instead of running the
+        // default command (--migrate-to-keychain). This should help avoid surprises.
+        return open_script_with_default_terminal(argv[0], std::filesystem::canonical(fmt::format(
+            "{}/../Resources/help-message.sh",
+            std::filesystem::path{ argv[0] }.parent_path().string())).string()) ? 0 : 1;
     }
 
     std::cout << "No operation was specified. Assuming --migrate-to-keychain." << std::endl;

@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include <string_view>
-#include <LocalAuthentication/LAContext.h>
+#import <string_view>
+#import <LocalAuthentication/LAContext.h>
 
 #if !__has_feature(objc_arc)
     #error Please compile this file with `-fobjc-arc`.

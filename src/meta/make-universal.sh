@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash -ef
 # SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -23,7 +23,7 @@ make_arch() {
 
 is_universal() {
     # shellcheck disable=SC2207
-    archs=( $(lipo -archs "$1" | tr " " "\n" | sort) )
+    IFS=$'\n' archs=( $(lipo -archs "$1" | tr " " "\n" | sort) )
     if [ "${#archs[@]}" -ne 2 ]; then
         return 1
     elif [ "${archs[0]}" != "arm64" ] && [ "${archs[0]}" != "arm64e" ]; then

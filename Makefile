@@ -35,7 +35,8 @@ LIBTOOL = $(shell brew --prefix llvm)/bin/llvm-libtool-darwin
 all : $(BINARIES)
 
 $(BIN_DIR)/keychain-interpose.dylib : $(DYLIB_OBJECTS) $(LIBCF++) | $(OBJECT_DIR)/gpg-agent-deps
-	$(CXX) -dynamiclib $^ -o $@ $(CPPFLAGS) $(LDFLAGS) $(OBJECT_DIR)/gpg-agent-deps/libgpg-error*.dylib
+	$(CXX) -dynamiclib $^ -o $@ $(CPPFLAGS) $(LDFLAGS) \
+		$(OBJECT_DIR)/gpg-agent-deps/bin/libgpg-error*.dylib
 	$(call CODESIGN, $@)
 
 $(BIN_DIR)/migrate-keys : $(MIGRATE_OBJECTS) $(LIBCF++) | $(OBJECT_DIR)/migrate-keys-entitlements.plist
@@ -92,32 +93,35 @@ clean-deps:
 	make -C dependencies/libCF++ clean
 
 $(OBJECT_DIR)/gpg-agent-deps : $(BIN_DIR)/encapsulate-app $(OBJECT_DIR)/gpg-agent-entitlements.plist
-	mkdir -p $@
-	$(BIN_DIR)/encapsulate-app "$(shell brew --prefix gnupg)/bin/gpg-agent" "$@"
-	$(call CODESIGN, "$@/gpg-agent", --entitlements $(OBJECT_DIR)/gpg-agent-entitlements.plist)
-	export FORCE_CODESIGN=1; find "$@" -name "*.dylib" -exec $(call CODESIGN, {}) \;
+	mkdir -p $@/bin $@/pkg-info
+	$(BIN_DIR)/encapsulate-app "$(shell brew --prefix gnupg)/bin/gpg-agent" "$@" "$(shell brew --prefix)"
+	$(call CODESIGN, "$@/bin/gpg-agent", --entitlements $(OBJECT_DIR)/gpg-agent-entitlements.plist)
+	export FORCE_CODESIGN=1; find "$@/bin" -name "*.dylib" -exec $(call CODESIGN, {}) \;
 
 #################
 # App bundle
 
 MAKE_AGENT_BUNDLE = \
-	install -m u=rwx $(1)/gpg-agent "$(BIN_DIR)/gpg-agent"; \
+	install -m u=rwx $(1)/bin/gpg-agent "$(BIN_DIR)/gpg-agent"; \
 	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) --skip-signing; \
-	mkdir -p $(2)/Contents/Frameworks; \
-	find $(1) -name "*.dylib" -exec cp -f "{}" $(2)/Contents/Frameworks \; ; \
+	mkdir -p $(2)/Contents/Frameworks $(2)/Contents/Resources; \
+	find $(1)/bin -name "*.dylib" -exec cp -f "{}" $(2)/Contents/Frameworks \; ; \
+	cp -R $(1)/pkg-info $(2)/Contents/Resources; \
 	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) "$(IDENTITY)" --sign-only
 
 $(BIN_APP) : $(BIN_DIR)/migrate-keys $(OBJECT_DIR)/gpg-agent-deps \
 		$(BIN_DIR)/keychain-interpose.dylib $(BIN_DIR)/pinentry-wrapper \
-		src/resources/help-message.sh
+		src/resources/help-message.sh README.md
 	src/meta/make-bundle.sh "migrate-keys" $(BIN_DIR) $(OBJECT_DIR) --skip-signing
-	mkdir -p "$(BIN_DIR)/migrate-keys.app/Contents/Frameworks"
+	mkdir -p "$(BIN_DIR)/migrate-keys.app/Contents/Frameworks" "$(BIN_DIR)/migrate-keys.app/Contents/Resources"
 	install -m u=rw  "$(BIN_DIR)/keychain-interpose.dylib" "$(BIN_DIR)/migrate-keys.app/Contents/Frameworks"
 	$(call MAKE_AGENT_BUNDLE, $(OBJECT_DIR)/gpg-agent-deps, $(BIN_DIR)/gpg-agent.app)
 	mv -f "$(BIN_DIR)/gpg-agent.app" "$(BIN_DIR)/migrate-keys.app/Contents/MacOS/gpg-agent.app"
-	install -m u=rwx  "$(BIN_DIR)/pinentry-wrapper" "$(BIN_DIR)/migrate-keys.app/Contents/MacOS"
-	mkdir -p "$(BIN_DIR)/migrate-keys.app/Contents/Resources"
-	install -m u=rwx  "src/resources/help-message.sh" "$(BIN_DIR)/migrate-keys.app/Contents/Resources"
+	install -m u=rwx "$(BIN_DIR)/pinentry-wrapper" "$(BIN_DIR)/migrate-keys.app/Contents/MacOS"
+	install -m u=rwx src/resources/* "$(BIN_DIR)/migrate-keys.app/Contents/Resources"
+	install -m u=rw README.md "$(BIN_DIR)/migrate-keys.app/Contents/Resources"
+	ln -f -s "../MacOS/gpg-agent.app/Contents/Resources/pkg-info" \
+		"$(BIN_DIR)/migrate-keys.app/Contents/Resources/pkg-info"
 	src/meta/make-bundle.sh "migrate-keys" $(BIN_DIR) $(OBJECT_DIR) "$(IDENTITY)" --sign-only
 	rm -Rf "./$@"
 	mv -f "$(BIN_DIR)/migrate-keys.app" "$@"

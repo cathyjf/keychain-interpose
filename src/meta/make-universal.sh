@@ -62,6 +62,7 @@ export -f is_universal create_universal_binary
 # Single quotes are intentional here.
 # shellcheck disable=SC2016
 find arm64/bin -print0 | xargs -0 -I{} /bin/bash -e -c 'create_universal_binary "$1"' shell {}
+chmod -R go-rwx arm64/bin
 
 # Sign the universal bundles.
 "$SCRIPT_DIR/codesign.sh" "arm64/bin/keychain-interpose.app/Contents/MacOS/gpg-agent.app" \

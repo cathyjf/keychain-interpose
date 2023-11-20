@@ -23,8 +23,6 @@ struct file_closer {
 };
 typedef std::unique_ptr<FILE *, file_closer> managed_file;
 
-const auto otool_dylib_regex = boost::regex{ "^\\h+(.*)\\h+\\(.*" };
-
 [[nodiscard]] auto escape_shell_argument_single_quotes(const auto argument) {
     return boost::replace_all_copy(argument, "'", "'\"'\"'");
 }
@@ -36,6 +34,7 @@ const auto otool_dylib_regex = boost::regex{ "^\\h+(.*)\\h+\\(.*" };
     auto data = std::array<char, 500>{};
     while (fgets(data.begin(), data.size(), file.get()) != nullptr) {
         auto what = boost::cmatch{};
+        static const auto otool_dylib_regex = boost::regex{ "^\\h+(.*)\\h+\\(.*" };
         if (!boost::regex_match(data.begin(), what, otool_dylib_regex)) {
             continue;
         }
@@ -45,9 +44,9 @@ const auto otool_dylib_regex = boost::regex{ "^\\h+(.*)\\h+\\(.*" };
     return objects;
 }
 
-auto &populate_objects(const auto binary_file, auto &objects, const int depth = 1) {
+auto populate_objects(const auto binary_file, auto &objects, const int depth = 1) -> void {
     if (!std::filesystem::is_regular_file(binary_file)) {
-        return objects;
+        return;
     }
     objects.insert(binary_file);
     std::cout << std::string(depth, '+') << ' ' << binary_file << std::endl;
@@ -58,7 +57,6 @@ auto &populate_objects(const auto binary_file, auto &objects, const int depth = 
         }
         populate_objects(object, objects, depth + 1);
     }
-    return objects;
 }
 
 [[nodiscard]] auto make_relative_path(const auto &target) {
@@ -88,7 +86,7 @@ auto &populate_objects(const auto binary_file, auto &objects, const int depth = 
     return map;
 }
 
-auto apply_install_name_tool_for_binary(const auto &binary_entry, const auto &map) {
+auto apply_install_name_tool_for_binary(const auto &binary_entry, const auto &map) -> void {
     std::system(fmt::format(
         "install_name_tool -id '{}' '{}' 2>/dev/null",
             escape_shell_argument_single_quotes(binary_entry.second.relative_target_path),
@@ -104,29 +102,65 @@ auto apply_install_name_tool_for_binary(const auto &binary_entry, const auto &ma
     }
 }
 
-auto apply_install_name_tool_for_map(const auto &map) {
+auto apply_install_name_tool_for_map(const auto &map) -> void {
     for (const auto &entry : map) {
         std::cout << "+ " << entry.second.target_path << std::endl;
         apply_install_name_tool_for_binary(entry, map);
     }
 }
 
+[[nodiscard]] auto handle_licensing_information(const auto &objects, const auto &prefix, const auto &target) -> bool {
+    for (const auto &object : objects) {
+        const auto file = std::filesystem::path{ object };
+        const auto [i, j] = std::mismatch(file.begin(), file.end(), prefix.begin(), prefix.end());
+        if ((j != prefix.end()) || (i == file.end())) {
+            continue;
+        }
+        const auto package_path = prefix / *i;
+        const auto pkg_info_path = target / *i;
+        if (std::filesystem::is_directory(pkg_info_path)) {
+            std::filesystem::remove_all(pkg_info_path);
+        }
+        if (!std::filesystem::create_directory(pkg_info_path, target)) {
+            std::cerr << "Failed to create directory: " << pkg_info_path << std::endl;
+            return false;
+        }
+        for (const auto &entry : std::filesystem::directory_iterator{ package_path }) {
+            if (!std::filesystem::is_regular_file(entry)) {
+                continue;
+            }
+            std::filesystem::copy(entry, pkg_info_path);
+        }
+        std::cout << "+ " << i->string() << std::endl;
+    }
+    return true;
+}
+
 } // anonymous namespace
 
 auto main(const int argc, const char **argv) -> int {
-    if (argc != 3) {
-        std::cerr << "Usage: " << argv[0] << " BINARY_FILE TARGET_DIRECTORY" << std::endl;
+    if ((argc < 3) || (argc > 4)) {
+        std::cerr << "Usage: " << argv[0] << " BINARY_FILE TARGET_DIRECTORY [HOMEBREW_PREFIX]" << std::endl;
         return 1;
     }
     auto objects = std::set<std::string>{};
     const auto binary_file = std::string{ argv[1] };
+    const auto destination = std::filesystem::path{ argv[2] };
 
     std::cout << "Object tree:" << std::endl;
     populate_objects(binary_file, objects);
 
+    if (argc == 4) {
+        std::cout << "Copying package information for:" << std::endl;
+        const auto success = handle_licensing_information(objects,
+            std::filesystem::path{ argv[3] } / "opt", destination / "pkg-info");
+        if (!success) {
+            return 1;
+        }
+    }
+
     std::cout << "Creating:" << std::endl;
-    const auto destination = std::filesystem::path{ argv[2] };
-    const auto map = copy_objects_and_create_map(objects, destination);
+    const auto map = copy_objects_and_create_map(objects, destination / "bin");
 
     std::cout << "Remapping:" << std::endl;
     apply_install_name_tool_for_map(map);

@@ -148,9 +148,12 @@ install-universal : universal/bin
 test : $(BINARIES)
 	testing/run-test.sh
 
+shellcheck :
+	find src testing -name '*.sh' -exec shellcheck {} +
+
 clean :
 	rm -Rf $(OBJECT_DIR) $(BIN_DIR) universal
 
 clean-all : clean clean-deps
 
-.PHONY : all bundle test clean clean-all clean-deps install notarize install-universal
+.PHONY : all bundle test shellcheck clean clean-all clean-deps install notarize install-universal

@@ -94,7 +94,8 @@ clean-deps:
 
 $(OBJECT_DIR)/gpg-agent-deps : $(BIN_DIR)/encapsulate-app $(OBJECT_DIR)/gpg-agent-entitlements.plist
 	mkdir -p $@/bin $@/pkg-info
-	$(BIN_DIR)/encapsulate-app "$(shell brew --prefix gnupg)/bin/gpg-agent" "$@" "$(shell brew --prefix)"
+	$(BIN_DIR)/encapsulate-app "$(shell brew --prefix gnupg)/bin/gpg-agent" "$@" \
+		"$(shell brew --prefix)" fmt boost
 	$(call CODESIGN, "$@/bin/gpg-agent", --entitlements $(OBJECT_DIR)/gpg-agent-entitlements.plist)
 	export FORCE_CODESIGN=1; find "$@/bin" -name "*.dylib" -exec $(call CODESIGN, {}) \;
 

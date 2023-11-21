@@ -7,6 +7,7 @@
 #include <map>
 #include <ranges>
 #include <set>
+#include <span>
 #include <stdio.h>
 
 #include <boost/algorithm/string/replace.hpp>
@@ -109,29 +110,41 @@ auto apply_install_name_tool_for_map(const auto &map) -> void {
     }
 }
 
-[[nodiscard]] auto handle_licensing_information(const auto &objects, const auto &prefix, const auto &target) -> bool {
+[[nodiscard]] auto install_licensing_information(const auto &i, const auto &prefix, const auto &target) {
+    const auto package_path = prefix / i;
+    const auto pkg_info_path = target / i;
+    if (std::filesystem::is_directory(pkg_info_path)) {
+        std::filesystem::remove_all(pkg_info_path);
+    }
+    if (!std::filesystem::create_directory(pkg_info_path, target)) {
+        std::cerr << "Failed to create directory: " << pkg_info_path << std::endl;
+        return false;
+    }
+    for (const auto &entry : std::filesystem::directory_iterator{ package_path }) {
+        if (!std::filesystem::is_regular_file(entry)) {
+            continue;
+        }
+        std::filesystem::copy(entry, pkg_info_path);
+    }
+    std::cout << "+ " << i << std::endl;
+    return true;
+}
+
+[[nodiscard]] auto handle_licensing_information(const auto &objects, const auto &extra_pkgs,
+        const auto &prefix, const auto &target) -> bool {
+    auto pkg_names = std::vector<std::string>{ std::cbegin(extra_pkgs), std::cend(extra_pkgs) };
     for (const auto &object : objects) {
         const auto file = std::filesystem::path{ object };
         const auto [i, j] = std::mismatch(file.begin(), file.end(), prefix.begin(), prefix.end());
         if ((j != prefix.end()) || (i == file.end())) {
             continue;
         }
-        const auto package_path = prefix / *i;
-        const auto pkg_info_path = target / *i;
-        if (std::filesystem::is_directory(pkg_info_path)) {
-            std::filesystem::remove_all(pkg_info_path);
-        }
-        if (!std::filesystem::create_directory(pkg_info_path, target)) {
-            std::cerr << "Failed to create directory: " << pkg_info_path << std::endl;
+        pkg_names.emplace_back(*i);
+    }
+    for (const auto &entry : pkg_names) {
+        if (!install_licensing_information(entry, prefix, target)) {
             return false;
         }
-        for (const auto &entry : std::filesystem::directory_iterator{ package_path }) {
-            if (!std::filesystem::is_regular_file(entry)) {
-                continue;
-            }
-            std::filesystem::copy(entry, pkg_info_path);
-        }
-        std::cout << "+ " << i->string() << std::endl;
     }
     return true;
 }
@@ -139,8 +152,8 @@ auto apply_install_name_tool_for_map(const auto &map) -> void {
 } // anonymous namespace
 
 auto main(const int argc, const char **argv) -> int {
-    if ((argc < 3) || (argc > 4)) {
-        std::cerr << "Usage: " << argv[0] << " BINARY_FILE TARGET_DIRECTORY [HOMEBREW_PREFIX]" << std::endl;
+    if (argc < 3) {
+        std::cerr << "Usage: " << argv[0] << " binary_file target_dir [brew_prefix [extra_pkg1...]]" << std::endl;
         return 1;
     }
     auto objects = std::set<std::string>{};
@@ -150,9 +163,9 @@ auto main(const int argc, const char **argv) -> int {
     std::cout << "Object tree:" << std::endl;
     populate_objects(binary_file, objects);
 
-    if (argc == 4) {
+    if (argc >= 4) {
         std::cout << "Copying package information for:" << std::endl;
-        const auto success = handle_licensing_information(objects,
+        const auto success = handle_licensing_information(objects, std::span(argv + 4, argv + argc),
             std::filesystem::path{ argv[3] } / "opt", destination / "pkg-info");
         if (!success) {
             return 1;

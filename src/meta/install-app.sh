@@ -15,5 +15,4 @@ mv -f "$tmp_dir/$APP_NAME" "$2/$APP_NAME"
 
 # Set up some symlinks.
 ln -s -f "$2/$APP_NAME/Contents/MacOS/migrate-keys" "$2/migrate-keys"
-ln -s -f "$2/$APP_NAME/Contents/MacOS/gpg-agent.app/Contents/MacOS/gpg-agent" "$2/gpg-agent"
-ln -s -f "$2/$APP_NAME/Contents/Frameworks/keychain-interpose.dylib" "$2/keychain-interpose.dylib"
+ln -s -f "$2/$APP_NAME/Contents/Resources/gpg-keychain-agent.sh" "$2/gpg-keychain-agent"

@@ -6,7 +6,7 @@
 case "$HOMEBREW_WRAPPER_ARCH" in
     "arm64") bottle_arch="arm";;
     "x86_64") bottle_arch="intel";;
-    *) echo "Unrecognized architecture: $1" 1>&2; return 1;;
+    *) echo "Unrecognized architecture: $HOMEBREW_WRAPPER_ARCH" 1>&2; exit 1
 esac
 
 script_dir="$(dirname "$(readlink -f "$0")")"

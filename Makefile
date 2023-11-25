@@ -10,7 +10,8 @@ CPPFLAGS := $(CPPFLAGS_MINIMAL) $(shell pkg-config --cflags fmt gpg-error) -Idep
 	-I$(shell brew --prefix boost)/include
 OBJCFLAGS := -fobjc-arc -Wno-unused-but-set-variable
 LIBCF++ := dependencies/libCF++/$(BUILD_DIR)/Build/lib/libCF++.a
-LDFLAGS := -fuse-ld=lld -framework Security -framework CoreFoundation $(shell brew --prefix fmt)/lib/libfmt.a \
+LDFLAGS := -framework Security -framework CoreFoundation \
+	$(shell brew --prefix fmt)/lib/libfmt.a \
 	$(shell brew --prefix boost)/lib/libboost_program_options.a
 MODULE_OBJECTS := $(addprefix $(OBJECT_DIR)/, cathyjf.ki.common.pcm cathyjf.ki.log.pcm)
 MIGRATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o cathyjf.ki.common.o migrate-keys-helper.o)
@@ -156,5 +157,7 @@ clean :
 	rm -Rf $(OBJECT_DIR) $(BIN_DIR) universal
 
 clean-all : clean clean-deps
+
+.DELETE_ON_ERROR :
 
 .PHONY : all bundle test shellcheck clean clean-all clean-deps install notarize install-universal

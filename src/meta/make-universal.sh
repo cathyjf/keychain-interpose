@@ -28,6 +28,7 @@ print_descendents() {
 on_exit() {
     local -r IFS=$'\n'
     local pids
+    # shellcheck disable=SC2311
     pids="$(print_descendents "$$")"
     readonly pids
     if [ -n "$pids" ]; then
@@ -81,6 +82,7 @@ create_universal_binary() {
     local other_version
     other_version=$(printf "%s" "$1" | sed "s/^arm64/x64/")
     lipo -create "$1" "$other_version" -output "$1.universal"
+    # shellcheck disable=SC2310
     if ! is_universal "$1.universal"; then
         echo "Failed to make a universal version of $1." 1>&2
         return 1

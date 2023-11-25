@@ -1,0 +1,3 @@
+# Config file for shellcheck(1).
+
+enable=check-set-e-suppressed

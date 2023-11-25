@@ -33,7 +33,7 @@ my_arch=$(arch)
 if [ "$my_arch" = "i386" ]; then
     my_arch="x86_64"
 fi
-brew_prefix=$(get_prefix_for_arch "$my_arch")
+brew_prefix=$(set -e; get_prefix_for_arch "$my_arch")
 brew=( "$brew_prefix"/bin/brew )
 if [ ! -x "${brew[0]}" ]; then
     echo "Error: ${brew[0]} is not executable."
@@ -45,7 +45,7 @@ fi
 brew_arch="${HOMEBREW_WRAPPER_ARCH:-$my_arch}"
 if [ "$my_arch" != "$brew_arch" ]; then
     # If we get here, the user has requested a foreign installation of Homebrew.
-    potential_local_brew=$(get_prefix_for_arch "$brew_arch")"/bin/brew"
+    potential_local_brew=$(set -e; get_prefix_for_arch "$brew_arch")"/bin/brew"
     if [ -x "$potential_local_brew" ]; then
         brew=( "arch" "-$brew_arch" "$potential_local_brew" )
     else

@@ -14,8 +14,9 @@ print_cdhash() {
     sed -En 's/^CDHash=([0-9a-f]*)$/\1/p' < <(echo "$data")
 }
 
-new_cdhash=$(print_cdhash "$1/$APP_NAME")
-old_cdhash=$(print_cdhash "$2/$APP_NAME" || true)
+new_cdhash=$(set -e; print_cdhash "$1/$APP_NAME")
+# shellcheck disable=SC2311
+old_cdhash=$(print_cdhash "$2/$APP_NAME")
 if [ "$new_cdhash" = "$old_cdhash" ] && (xcrun stapler validate -q "$2/$APP_NAME"); then
     echo "The installed version of keychain-interpose.app is up-to-date."
     exit 0

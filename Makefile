@@ -98,7 +98,7 @@ $(OBJECT_DIR)/gpg-agent-deps : $(BIN_DIR)/encapsulate-app $(OBJECT_DIR)/gpg-agen
 	$(BIN_DIR)/encapsulate-app "$(shell brew --prefix gnupg)/bin/gpg-agent" "$@" \
 		"$(shell brew --prefix)" fmt boost
 	$(call CODESIGN, "$@/bin/gpg-agent", --entitlements $(OBJECT_DIR)/gpg-agent-entitlements.plist)
-	export FORCE_CODESIGN=1; find "$@/bin" -name "*.dylib" -exec $(call CODESIGN, {}) \;
+	find "$@/bin" -name "*.dylib" -print0 | xargs -0 -I{} $(call CODESIGN, {})
 
 #################
 # App bundle
@@ -107,7 +107,7 @@ MAKE_AGENT_BUNDLE = \
 	install -m u=rwx $(1)/bin/gpg-agent "$(BIN_DIR)/gpg-agent"; \
 	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) --skip-signing; \
 	mkdir -p $(2)/Contents/Frameworks $(2)/Contents/Resources; \
-	find $(1)/bin -name "*.dylib" -exec cp -f "{}" $(2)/Contents/Frameworks \; ; \
+	find $(1)/bin -name "*.dylib" -print0 | xargs -0 -I{} cp -f "{}" $(2)/Contents/Frameworks; \
 	cp -R $(1)/pkg-info $(2)/Contents/Resources; \
 	src/meta/make-bundle.sh "gpg-agent" $(BIN_DIR) $(OBJECT_DIR) "$(IDENTITY)" --sign-only
 
@@ -120,7 +120,8 @@ $(BIN_APP) : $(BIN_DIR)/migrate-keys $(OBJECT_DIR)/gpg-agent-deps \
 	$(call MAKE_AGENT_BUNDLE, $(OBJECT_DIR)/gpg-agent-deps, $(BIN_DIR)/gpg-agent.app)
 	mv -f "$(BIN_DIR)/gpg-agent.app" "$(BIN_DIR)/migrate-keys.app/Contents/MacOS/gpg-agent.app"
 	install -m u=rwx "$(BIN_DIR)/pinentry-wrapper" "$(BIN_DIR)/migrate-keys.app/Contents/MacOS"
-	install -m u=rwx src/resources/* "$(BIN_DIR)/migrate-keys.app/Contents/Resources"
+	find src/resources -type file -print0 | \
+		xargs -0 -I{} install -m u=rwx "{}" "$(BIN_DIR)/migrate-keys.app/Contents/Resources"
 	install -m u=rw README.md "$(BIN_DIR)/migrate-keys.app/Contents/Resources"
 	ln -f -s "../MacOS/gpg-agent.app/Contents/Resources/pkg-info" \
 		"$(BIN_DIR)/migrate-keys.app/Contents/Resources/pkg-info"

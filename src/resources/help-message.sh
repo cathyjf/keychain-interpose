@@ -9,7 +9,7 @@ echo "**************************************************************************
 echo
 echo "This application currently has only a command-line interface."
 echo "The \`migrate-keys\` binary is located at the following path:"
-binary_path=$(realpath $(dirname "$(readlink -f "$0")")/../MacOS/migrate-keys)
+binary_path=$(realpath "$(dirname "$(readlink -f "$0")")/../MacOS/migrate-keys")
 echo "    $binary_path"
 echo
 echo "***************************************************************************"

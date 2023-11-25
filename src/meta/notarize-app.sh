@@ -5,6 +5,9 @@
 if [ ! -d "$1" ] || { ! codesign --deep --verify --strict "$1"; }; then
     echo "Error: $1 should be a signed app bundle but is not." 1>&2
     exit 1
+elif (spctl -a "$1" > /dev/null 2>&1) && (xcrun stapler validate -q "$1") then
+    echo "$1 is already validly notarized."
+    exit 0
 fi
 
 tmp_dir=$(mktemp -d)
@@ -20,3 +23,6 @@ xcrun notarytool submit "$zip_path" "${auth_args[@]}" --wait | tee "$tmp_dir/sub
 # xcrun notarytool log "$submission_id" "${auth_args[@]}"
 
 xcrun stapler staple "$1"
+
+# Verify that the notarization was successful.
+spctl -vva "$1"

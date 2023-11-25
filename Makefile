@@ -140,10 +140,9 @@ universal universal/bin :
 
 notarize : universal/bin
 	NOTARY_KEYCHAIN_PROFILE="$(NOTARY_KEYCHAIN_PROFILE)" src/meta/notarize-app.sh "$</keychain-interpose.app"
-	spctl -vva "$</keychain-interpose.app"
 
 install-universal : universal/bin
-	make notarize
+	@make notarize
 	src/meta/install-app.sh "$<" "$(INSTALL_DIR)"
 
 #################

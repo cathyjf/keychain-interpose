@@ -7,6 +7,20 @@
 : "${1:?}" "${2:?}"
 
 APP_NAME="keychain-interpose.app"
+
+print_cdhash() {
+    local data
+    data="$(codesign -dvvv "$1" 2>&1)" || return 1
+    sed -En 's/^CDHash=([0-9a-f]*)$/\1/p' < <(echo "$data")
+}
+
+new_cdhash=$(print_cdhash "$1/$APP_NAME")
+old_cdhash=$(print_cdhash "$2/$APP_NAME" || true)
+if [ "$new_cdhash" = "$old_cdhash" ] && (xcrun stapler validate -q "$2/$APP_NAME"); then
+    echo "The installed version of keychain-interpose.app is up-to-date."
+    exit 0
+fi
+
 set -x
 tmp_dir=$(mktemp -d)
 cp -R "$1/$APP_NAME" "$tmp_dir"

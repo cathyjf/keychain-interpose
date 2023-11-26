@@ -1,4 +1,4 @@
 [submodule "libCF++"]
-	path = dependencies/libCF++
-	url = https://github.com/cathyjf-forks/CFPP.git
-	branch = main
+    path = dependencies/libCF++
+    url = https://github.com/cathyjf-forks/CFPP.git
+    branch = main

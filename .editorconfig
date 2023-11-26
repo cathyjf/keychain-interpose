@@ -1,0 +1,26 @@
+# https://editorconfig.org
+
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = false
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+
+[Makefile]
+indent_style = tab
+
+[src/migrate-keys-helper.mm]
+indent_size = unset
+
+[src/headers/apple/dyld-interposing.h]
+insert_final_newline = true
+indent_size = 3
+trim_trailing_whitespace = unset
+
+[{README.md,LICENSE.txt,LICENSES/*}]
+insert_final_newline = unset
+indent_style = unset
+indent_size = unset

@@ -14,15 +14,9 @@
 #include <boost/regex.hpp>
 #include <fmt/core.h>
 
-namespace {
+import cathyjf.ki.common;
 
-struct file_closer {
-    typedef FILE *pointer;
-    auto operator()(FILE *p) {
-        fclose(p);
-    }
-};
-typedef std::unique_ptr<FILE *, file_closer> managed_file;
+namespace {
 
 [[nodiscard]] auto escape_shell_argument_single_quotes(const auto argument) {
     return boost::replace_all_copy(argument, "'", "'\"'\"'");
@@ -31,7 +25,7 @@ typedef std::unique_ptr<FILE *, file_closer> managed_file;
 [[nodiscard]] auto get_dylibs_from_otool(const auto binary_file) {
     auto objects = std::set<std::string>{};
     const auto escaped_file = escape_shell_argument_single_quotes(binary_file);
-    const auto file = managed_file{ popen(fmt::format("otool -L '{}'", escaped_file).c_str(), "r") };
+    const auto file = managed_popen(fmt::format("otool -L '{}'", escaped_file).c_str(), "r");
     auto data = std::array<char, 500>{};
     while (fgets(data.begin(), data.size(), file.get()) != nullptr) {
         auto what = boost::cmatch{};

@@ -16,7 +16,7 @@ LDFLAGS := -framework Security -framework CoreFoundation \
 MODULE_OBJECTS := $(addprefix $(OBJECT_DIR)/, cathyjf.ki.common.pcm cathyjf.ki.log.pcm)
 MIGRATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o cathyjf.ki.common.o migrate-keys-helper.o)
 DYLIB_OBJECTS := $(addprefix $(OBJECT_DIR)/, keychain-interpose.o cathyjf.ki.common.o cathyjf.ki.log.o)
-ENCAPSULATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, encapsulate-app.o)
+ENCAPSULATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, encapsulate-app.o cathyjf.ki.common.o)
 PINENTRY_OBJECTS :=  $(addprefix $(OBJECT_DIR)/, pinentry-wrapper.o)
 OBJECTS := $(MODULE_OBJECTS) $(MIGRATE_OBJECTS) $(DYLIB_OBJECTS) $(ENCAPSULATE_OBJECTS) $(PINENTRY_OBJECTS)
 BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys keychain-interpose.app keychain-interpose.dylib \
@@ -75,7 +75,7 @@ $(OBJECT_DIR)/gpg-agent-entitlements.plist : src/meta/entitlements.plist.m4 | $(
 #################
 # Modules
 
-$(MIGRATE_OBJECTS) $(DYLIB_OBJECTS) : | $(MODULE_OBJECTS)
+$(MIGRATE_OBJECTS) $(DYLIB_OBJECTS) $(ENCAPSULATE_OBJECTS) : | $(MODULE_OBJECTS)
 
 $(OBJECT_DIR)/%.pcm : src/modules/%.cppm
 	$(CXX) --precompile $^ -o $@ $(CPPFLAGS)

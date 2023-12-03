@@ -204,9 +204,22 @@ namespace {
             std::cout << "    Failed to obtain this key from the keychain." << std::endl;
             continue;
         }
-        std::ofstream{ file }.write(
-            std::bit_cast<const std::ofstream::char_type *>(key->password), key->password_length);
-        std::cout << "    Successfully wrote key to the filesystem." << std::endl;
+        const auto success = ([&file, &key]() {
+            auto file_ofstream = std::ofstream{ file, std::ios_base::binary };
+            for (const auto i : std::span(key->password, key->password_length)) {
+                // This casts each character from `unsigned char` to `char`.
+                // This can probably be safely done without any explicit cast, but
+                // invoking std::bit_cast<> is intended to promote readability.
+                file_ofstream.put(std::bit_cast<const std::ofstream::char_type>(i));
+            }
+            file_ofstream.close();
+            return file_ofstream.good();
+        })();
+        if (success) {
+            std::cout << "    Successfully wrote key to the filesystem." << std::endl;
+        } else {
+            std::cout << "    Failed to write key to the filesystem." << std::endl;
+        }
     }
     return 0;
 }

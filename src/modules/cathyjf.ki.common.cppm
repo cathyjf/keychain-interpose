@@ -13,6 +13,10 @@ using namespace std::string_view_literals;
 
 export module cathyjf.ki.common;
 
+export [[nodiscard]] auto managed_popen(const auto, const auto);
+
+namespace {
+
 struct managed_file;
 struct file_closer {
     typedef std::invoke_result_t<decltype(popen), const char *, const char *> pointer;
@@ -33,7 +37,7 @@ private:
     }
     std::optional<std::invoke_result_t<decltype(pclose), file_closer::pointer>> _exit_status;
 
-    friend auto managed_popen(const auto, const auto);
+    friend auto ::managed_popen(const auto, const auto);
     friend auto file_closer::operator()(file_closer::pointer);
 
     managed_file(const managed_file &) = delete;
@@ -46,6 +50,8 @@ auto file_closer::operator()(file_closer::pointer p) {
         _file->_exit_status = status;
     }
 }
+
+} // anonymous namespace
 
 export [[nodiscard]] auto managed_popen(const auto command, const auto mode) {
     return managed_file{ popen(command, mode) };

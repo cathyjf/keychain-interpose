@@ -26,11 +26,10 @@ namespace {
     auto objects = std::set<std::string>{};
     const auto escaped_file = escape_shell_argument_single_quotes(binary_file);
     const auto file = managed_popen(fmt::format("otool -L '{}'", escaped_file).c_str(), "r");
-    auto data = std::array<char, 500>{};
-    while (fgets(data.begin(), data.size(), file.get()) != nullptr) {
+    while (auto data = fgetln_string(file.get())) {
         auto what = boost::cmatch{};
         static const auto otool_dylib_regex = boost::regex{ "^\\h+(.*)\\h+\\(.*" };
-        if (!boost::regex_match(data.begin(), what, otool_dylib_regex)) {
+        if (!boost::regex_match(data->c_str(), what, otool_dylib_regex)) {
             continue;
         }
         const auto dylib = what[1];

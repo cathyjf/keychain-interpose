@@ -64,6 +64,19 @@ export [[nodiscard]] auto get_keychain_query_for_keygrip(const std::optional<std
     return query;
 }
 
+export [[nodiscard]] auto fgetln_string(FILE *file) -> std::optional<std::string> {
+    auto length = size_t{};
+    const auto begin = fgetln(file, &length);
+    if ((begin == nullptr) || (length == 0)) {
+        return std::nullopt;
+    }
+    const auto end = ([&begin, &length]() {
+        const auto end = begin + length;
+        return (*(end - 1) != '\n') ? end : (end - 1);
+    })();
+    return std::string{ begin, end };
+}
+
 namespace {
 
 [[nodiscard]] auto get_gnupg_home_from_gpgconf() -> std::optional<std::filesystem::path> {
@@ -71,21 +84,13 @@ namespace {
     if (!file) {
         return std::nullopt;
     }
-    auto data = std::array<std::string::value_type, 500>{};
-    if (fgets(data.begin(), data.size(), file.get()) == nullptr) {
+    const auto data = fgetln_string(file.get());
+    if (!data.has_value()) {
         return std::nullopt;
     } else if (feof(file.get()) || ((file.reset(), file.get_exit_status()).value_or(1) != 0)) {
         return std::nullopt;
     }
-    const auto length = std::strlen(data.begin());
-    if (length == 0) {
-        return std::nullopt;
-    }
-    const auto end = ([&data, &length]() {
-        const auto end = data.begin() + length;
-        return (*(end - 1) != '\n') ? end : (end - 1);
-    })();
-    return std::filesystem::path{ data.begin(), end };
+    return *data;
 }
 
 } // anonymous namespace

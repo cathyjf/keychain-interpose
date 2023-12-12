@@ -14,11 +14,15 @@
 
 namespace {
 
+[[nodiscard]] auto nsstring_from_string_view(const std::string_view &string) {
+    return [[NSString alloc] initWithBytes:string.data()
+                                    length:string.length()
+                                  encoding:NSASCIIStringEncoding];
+}
+
 [[nodiscard]] auto nsurl_from_string_view(const std::string_view &string) {
-    return [NSURL
-        fileURLWithPath:[[NSString alloc] initWithCString:string.data()
-                                                 encoding:NSASCIIStringEncoding]
-            isDirectory:NO];
+    return [NSURL fileURLWithPath:nsstring_from_string_view(string)
+                      isDirectory:NO];
 }
 
 [[nodiscard]] auto default_application_for_file(const auto &filename) {
@@ -38,8 +42,7 @@ namespace {
     auto sema = dispatch_semaphore_create(0);
     __block auto authentication_success = false;
     [context evaluatePolicy:LAPolicyDeviceOwnerAuthentication
-            localizedReason:[[NSString alloc] initWithCString:reason.data()
-                                                     encoding:NSASCIIStringEncoding]
+            localizedReason:nsstring_from_string_view(reason)
                       reply:^(BOOL success, NSError *) {
                                 authentication_success = success;
                                 dispatch_semaphore_signal(sema);

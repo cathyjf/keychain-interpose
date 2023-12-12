@@ -113,7 +113,7 @@ skip_updates=1 make_multiarch
 export -f is_universal create_universal_binary
 # Single quotes are intentional here.
 # shellcheck disable=SC2016
-find arm64/bin -print0 | xargs -0 -I{} /bin/bash -efc 'create_universal_binary "$1"' shell {}
+find arm64/bin -print0 | xargs -0 -I{} "$BASH" -efc 'create_universal_binary "$1"' shell {}
 chmod -R go-rwx arm64/bin
 
 # Sign the universal bundles.

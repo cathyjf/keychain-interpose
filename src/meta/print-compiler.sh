@@ -1,8 +1,14 @@
-#!/bin/sh
+#!/bin/bash -efu
 # SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-BREW_CLANG="$(brew --prefix)/opt/llvm/bin/clang++"
+which -s brew && brew bundle install --no-lock --file - 1>&2 << 'BREWFILE_END'
+    tap "homebrew/core"
+    brew "llvm"
+    brew "procmail"
+BREWFILE_END
+
+BREW_CLANG="$(brew --prefix 2>/dev/null || true)/opt/llvm/bin/clang++"
 if [ -x "$BREW_CLANG" ]; then
     echo "$BREW_CLANG"
 else

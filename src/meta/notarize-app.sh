@@ -2,10 +2,10 @@
 # SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-if [ ! -d "$1" ] || { ! codesign --deep --verify --strict "$1"; }; then
+if [ ! -d "$1" ] || { ! codesign --deep --verify --strict "$1"; } then
     echo "Error: $1 should be a signed app bundle but is not." 1>&2
     exit 1
-elif (spctl -a "$1" > /dev/null 2>&1) && (xcrun stapler validate -q "$1"); then
+elif { spctl -a "$1" > /dev/null 2>&1; } && { xcrun stapler validate -q "$1"; } then
     echo "$1 is already validly notarized."
     exit 0
 fi
@@ -31,7 +31,7 @@ staple_app() {
 
 export -f staple_app
 # shellcheck disable=SC2016
-find "$1" -name 'Info.plist' -print0 | xargs -0 -I{} /bin/bash -efc 'staple_app "$1"' shell {}
+find "$1" -name 'Info.plist' -print0 | xargs -0 -I{} "$BASH" -efc 'staple_app "$1"' shell {}
 
 # Verify that the notarization was successful.
 spctl -vva "$1"

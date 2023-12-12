@@ -24,13 +24,12 @@ BINARIES := $(addprefix $(BIN_DIR)/, migrate-keys keychain-interpose.app keychai
 IDENTITY := Developer ID Application: Cathy Fitzpatrick (KVRBCYNMT7)
 TEAM_ID := KVRBCYNMT7
 NOTARY_KEYCHAIN_PROFILE := cathyjf
-GNUPGHOME = $(eval value := $(shell printf $$GNUPGHOME))$(value)
 INSTALL_DIR := $(GNUPGHOME)
 CODESIGN = src/meta/codesign.sh $(1) "$(IDENTITY)" "$(2)"
 
 # Homebrew's version of clang is required because we use C++ standard modules.
 # Apple's clang does not currently support the standard version of modules.
-CXX = $(eval value := $(shell src/meta/print-compiler.sh))$(value)
+CXX = $(eval CXX := $$(shell src/meta/print-compiler.sh))$(CXX)
 LIBTOOL = $(shell brew --prefix llvm)/bin/llvm-libtool-darwin
 
 all : $(BINARIES)

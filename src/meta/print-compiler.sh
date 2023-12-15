@@ -6,6 +6,8 @@ which -s brew && brew bundle install --no-lock --file - 1>&2 << 'BREWFILE_END'
     tap "homebrew/core"
     brew "llvm"
     brew "procmail"
+    brew "wget"
+    brew "yq"
 BREWFILE_END
 
 BREW_CLANG="$(brew --prefix 2>/dev/null || true)/opt/llvm/bin/clang++"

@@ -144,6 +144,11 @@ install-universal : universal/bin
 	@make notarize
 	src/meta/install-app.sh "$<" "$(INSTALL_DIR)"
 
+release : universal/bin
+	@make notarize
+	src/meta/download-source.sh
+	/usr/bin/ditto -ck --keepParent "$</keychain-interpose.app" "$</keychain-interpose.app.zip"
+
 #################
 
 test : $(BINARIES)
@@ -159,4 +164,4 @@ clean-all : clean clean-deps
 
 .DELETE_ON_ERROR :
 
-.PHONY : all bundle test shellcheck clean clean-all clean-deps install notarize install-universal
+.PHONY : all bundle release test shellcheck clean clean-all clean-deps install notarize install-universal

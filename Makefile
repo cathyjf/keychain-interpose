@@ -121,6 +121,8 @@ $(BIN_APP) : $(BIN_DIR)/migrate-keys $(OBJECT_DIR)/gpg-agent-deps \
 	install -m u=rwx "$(BIN_DIR)/pinentry-wrapper" "$(BIN_DIR)/migrate-keys.app/Contents/MacOS"
 	find src/resources -type file -print0 | \
 		xargs -0 -I{} install -m u=rwx "{}" "$(BIN_DIR)/migrate-keys.app/Contents/Resources"
+	find "$(BIN_DIR)/migrate-keys.app/Contents/Resources" -name '*.sh' -print0 | \
+		xargs -0 -I{} $(call CODESIGN, {})
 	install -m u=rw README.md "$(BIN_DIR)/migrate-keys.app/Contents/Resources"
 	ln -f -s "../MacOS/gpg-agent.app/Contents/Resources/pkg-info" \
 		"$(BIN_DIR)/migrate-keys.app/Contents/Resources/pkg-info"

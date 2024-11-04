@@ -4,6 +4,7 @@
 
 which -s brew && brew bundle install --no-lock --file - 1>&2 << 'BREWFILE_END'
     tap "homebrew/core"
+    brew "bash"
     brew "llvm"
     brew "procmail"
     brew "wget"

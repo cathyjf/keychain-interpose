@@ -12,9 +12,9 @@ export HOMEBREW_NO_INSTALL_CLEANUP=1
 
 get_prefix_for_arch() {
     case "$1" in
-        "arm64") echo "/opt/homebrew";;
-        "x86_64") echo "/usr/local";;
-        *) echo "Unrecognized architecture: $1" 1>&2; return 1;;
+        'arm64') echo "/opt/homebrew";;
+        'x86_64' | 'i386') echo "/usr/local";;
+        *) echo "[env] Unrecognized architecture: $1" 1>&2; return 1;;
     esac
 }
 
@@ -30,9 +30,7 @@ install_brew() {
 }
 
 my_arch=$(arch)
-if [ "$my_arch" = "i386" ]; then
-    my_arch="x86_64"
-fi
+[[ "$my_arch" == "i386" ]] && my_arch="x86_64"
 brew_prefix=$(set -e; get_prefix_for_arch "$my_arch")
 brew=( "$brew_prefix"/bin/brew )
 if [ ! -x "${brew[0]}" ]; then

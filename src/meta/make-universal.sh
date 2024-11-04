@@ -15,7 +15,6 @@ print_descendents() {
     local -a pids
     # shellcheck disable=SC2207
     pids=( $(pgrep -P "$1") )
-    readonly pids
     echo "${pids[*]}"
 
     if [ "${#pids[@]}" -ne "0" ]; then
@@ -30,7 +29,6 @@ on_exit() {
     local pids
     # shellcheck disable=SC2311
     pids="$(print_descendents "$$")"
-    readonly pids
     if [ -n "$pids" ]; then
         # Some processes may have finished on their own before we had a chance
         # to kill them. This can cause the kill command to return a non-zero
@@ -97,7 +95,6 @@ make_multiarch() {
     pids+=( "$!" )
     make_arch "x86_64" "x64" "$@" &
     pids+=( "$!" )
-    readonly pids
 
     # Invoke wait in a loop rather than passing all of the pids to wait at once
     # in order to verify that every job returned with a successful exit status.

@@ -6,11 +6,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <format>
 #include <iostream>
 #include <memory>
 #include <set>
 
-#include <fmt/core.h>
 #include <gpg-error.h>
 #include <CF++.hpp>
 #include <CoreFoundation/CFData.h>
@@ -151,7 +151,7 @@ ssize_t my_gpgrt_read_line(gpgrt_stream_t any_stream, char **pbuffer, size_t *bu
         (*pbuffer)[i] = '\n';
     }
     (*pbuffer)[i + 1] = '\0';
-    write_log_message(fmt::format("Read a line of {} characters from stream: {}", i, stream->keygrip));
+    write_log_message(std::format("Read a line of {} characters from stream: {}", i, stream->keygrip));
     return i;
 }
 

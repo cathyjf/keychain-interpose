@@ -3,6 +3,7 @@
 
 #include <array>
 #include <filesystem>
+#include <format>
 #include <iostream>
 #include <map>
 #include <ranges>
@@ -12,7 +13,6 @@
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/regex.hpp>
-#include <fmt/core.h>
 
 import cathyjf.ki.common;
 
@@ -25,7 +25,7 @@ namespace {
 [[nodiscard]] auto get_dylibs_from_otool(const auto binary_file) {
     auto objects = std::set<std::string>{};
     const auto escaped_file = escape_shell_argument_single_quotes(binary_file);
-    const auto file = managed_popen(fmt::format("otool -L '{}'", escaped_file).c_str(), "r");
+    const auto file = managed_popen(std::format("otool -L '{}'", escaped_file).c_str(), "r");
     while (auto data = fgetln_string(file.get())) {
         auto what = boost::cmatch{};
         static const auto otool_dylib_regex = boost::regex{ "^\\h+(.*)\\h+\\(.*" };
@@ -54,7 +54,7 @@ auto populate_objects(const auto binary_file, auto &objects, const int depth = 1
 }
 
 [[nodiscard]] auto make_relative_path(const auto &target) {
-    return fmt::format("@executable_path/../Frameworks/{}",
+    return std::format("@executable_path/../Frameworks/{}",
         std::filesystem::path{ target }.filename().string());
 }
 
@@ -71,7 +71,7 @@ auto populate_objects(const auto binary_file, auto &objects, const int depth = 1
             std::filesystem::permissions(target, std::filesystem::perms::owner_write, std::filesystem::perm_options::add);
         }
         std::filesystem::copy_file(source, target, std::filesystem::copy_options::overwrite_existing);
-        std::cout << fmt::format("+ {} (from {})", target.string(), source.string()) << std::endl;
+        std::cout << std::format("+ {} (from {})", target.string(), source.string()) << std::endl;
         map.insert({ source.string(), dylib_data {
             .target_path = target.string(),
             .relative_target_path = make_relative_path(target.string())
@@ -81,13 +81,13 @@ auto populate_objects(const auto binary_file, auto &objects, const int depth = 1
 }
 
 auto apply_install_name_tool_for_binary(const auto &binary_entry, const auto &map) -> void {
-    std::system(fmt::format(
+    std::system(std::format(
         "install_name_tool -id '{}' '{}' 2>/dev/null",
             escape_shell_argument_single_quotes(binary_entry.second.relative_target_path),
             escape_shell_argument_single_quotes(binary_entry.second.target_path)
     ).c_str());
     for (const auto &entry : map) {
-        const auto command = fmt::format("install_name_tool -change '{}' '{}' '{}' 2>/dev/null",
+        const auto command = std::format("install_name_tool -change '{}' '{}' '{}' 2>/dev/null",
             escape_shell_argument_single_quotes(entry.first),
             escape_shell_argument_single_quotes(entry.second.relative_target_path),
             escape_shell_argument_single_quotes(binary_entry.second.target_path)

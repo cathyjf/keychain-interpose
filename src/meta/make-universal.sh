@@ -53,7 +53,7 @@ make_arch() {
     echo "Using this brew for $HOMEBREW_WRAPPER_ARCH: ${brew[*]:?}."
     if [ -z "$skip_updates" ]; then
         "${brew[@]:?}" update --force --quiet
-        "$SCRIPT_DIR/brew/install.sh" "boost" "fmt" "gnupg"
+        "$SCRIPT_DIR/brew/install.sh" "boost" "gnupg"
     fi
     make CPPFLAGS_EXTRA="-arch '$HOMEBREW_WRAPPER_ARCH'" BUILD_DIR="$build_dir" \
         CXX="$CXX" LIBTOOL="$LIBTOOL" "$@"

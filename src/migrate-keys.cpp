@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <iostream>
 #include <span>
@@ -11,7 +12,6 @@
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
-#include <fmt/core.h>
 #include <CF++.hpp>
 #include <CoreFoundation/CFArray.h>
 #include <Security/Security.h>
@@ -128,18 +128,19 @@ namespace {
     auto failures = 0;
     auto replacements = 0;
     for (auto entry : std::filesystem::directory_iterator(private_key_path)) {
-        const auto keygrip = entry.path().filename();
+        const auto path = entry.path();
+        const auto keygrip = path.filename();
         std::cout << "Found " << keygrip << "." << std::endl;
-        if (is_file_placeholder(entry)) {
+        if (is_file_placeholder(path)) {
             std::cout << "    Skipping this file because it appears to be a placeholder." << std::endl;
             continue;
         }
         std::cout << "    This appears to be a private key." << std::endl;
-        const auto data = read_entire_file(entry);
+        const auto data = read_entire_file(path);
         if (keychain_has_item(keygrip)) {
             if (is_same_key_in_keychain(std::string_view{ data }, keygrip)) {
                 std::cout << "    A copy of this key is already in the keychain." << std::endl;
-                if (write_placeholder(entry)) {
+                if (write_placeholder(path)) {
                     ++replacements;
                 }
             } else {
@@ -157,7 +158,7 @@ namespace {
         } else {
             std::cout << "    Successfully added the key to the keychain." << std::endl;
             ++successes;
-            if (write_placeholder(entry)) {
+            if (write_placeholder(path)) {
                 ++replacements;
             }
         }
@@ -232,7 +233,7 @@ void throw_if_invalid_options(const auto argc, const auto argv) {
             continue;
         }
         throw boost::program_options::error{
-            fmt::format("Invalid command line argument: '{}'", string)
+            std::format("Invalid command line argument: '{}'", string)
         };
     }
 }
@@ -266,7 +267,7 @@ void throw_if_conflicting_options(const auto &vm, const std::initializer_list<T>
 
 auto main(const int argc, char **argv) -> int {
     namespace po = boost::program_options;
-    auto desc = po::options_description{ fmt::format("Allowed options for {}", argv[0]) };
+    auto desc = po::options_description{ std::format("Allowed options for {}", argv[0]) };
     desc.add_options()
         ("help", "Print this help message.")
         ("migrate-to-keychain",
@@ -283,7 +284,7 @@ auto main(const int argc, char **argv) -> int {
     } catch (po::error &ex) {
         const auto error = ([&ex]() -> std::string {
             if (const auto unknown = dynamic_cast<po::unknown_option *>(&ex)) {
-                return fmt::format("Invalid option: '{}'", unknown->get_option_name());
+                return std::format("Invalid option: '{}'", unknown->get_option_name());
             }
             return ex.what();
         })();
@@ -317,7 +318,7 @@ auto main(const int argc, char **argv) -> int {
         // of {stdout, stderr, stdin} is connected to a TTY, we'll open the Terminal
         // application for the user and display a helpful message, instead of running the
         // default command (--migrate-to-keychain). This should help avoid surprises.
-        return open_script_with_default_terminal(argv[0], std::filesystem::canonical(fmt::format(
+        return open_script_with_default_terminal(argv[0], std::filesystem::canonical(std::format(
             "{}/../Resources/help-message.sh",
             std::filesystem::path{ argv[0] }.parent_path().string())).string()) ? 0 : 1;
     }

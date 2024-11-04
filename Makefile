@@ -6,12 +6,11 @@ OBJECT_DIR := $(BUILD_DIR)/objects
 BIN_DIR := $(BUILD_DIR)/bin
 BIN_APP := $(BIN_DIR)/keychain-interpose.app
 CPPFLAGS_MINIMAL := -std=c++20 -O3 -flto -Wall -Werror -fprebuilt-module-path="$(OBJECT_DIR)" $(CPPFLAGS_EXTRA)
-CPPFLAGS := $(CPPFLAGS_MINIMAL) $(shell pkg-config --cflags fmt gpg-error) -Idependencies/libCF++/CF++/include \
+CPPFLAGS := $(CPPFLAGS_MINIMAL) $(shell pkg-config --cflags gpg-error) -Idependencies/libCF++/CF++/include \
 	-I$(shell brew --prefix boost)/include
 OBJCFLAGS := -fobjc-arc -Wno-unused-but-set-variable
 LIBCF++ := dependencies/libCF++/$(BUILD_DIR)/Build/lib/libCF++.a
 LDFLAGS := -framework Security -framework CoreFoundation \
-	$(shell brew --prefix fmt)/lib/libfmt.a \
 	$(shell brew --prefix boost)/lib/libboost_program_options.a
 MODULE_OBJECTS := $(addprefix $(OBJECT_DIR)/, cathyjf.ki.common.pcm cathyjf.ki.log.pcm)
 MIGRATE_OBJECTS := $(addprefix $(OBJECT_DIR)/, migrate-keys.o cathyjf.ki.common.o migrate-keys-helper.o)
@@ -95,7 +94,7 @@ clean-deps:
 $(OBJECT_DIR)/gpg-agent-deps : $(BIN_DIR)/encapsulate-app $(OBJECT_DIR)/gpg-agent-entitlements.plist
 	mkdir -p $@/bin $@/pkg-info
 	$(BIN_DIR)/encapsulate-app "$(shell brew --prefix gnupg)/bin/gpg-agent" "$@" \
-		"$(shell brew --prefix)" fmt boost
+		"$(shell brew --prefix)" boost
 	$(call CODESIGN, "$@/bin/gpg-agent", --entitlements $(OBJECT_DIR)/gpg-agent-entitlements.plist)
 	find "$@/bin" -name "*.dylib" -print0 | xargs -0 -I{} $(call CODESIGN, {})
 

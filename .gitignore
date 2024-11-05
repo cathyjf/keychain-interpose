@@ -3,6 +3,7 @@
 .homebrew
 .vscode
 bin
+build
 objects
 
 testing/*.log

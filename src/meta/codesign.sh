@@ -41,7 +41,7 @@ fi
 # shellcheck disable=SC2206
 IFS=' ' extra_args=( $3 )
 readonly extra_args
-(set -x +e; codesign -f --timestamp --options runtime "${extra_args[@]}" -s "$2" "$1")
+(set +e; codesign -f --timestamp --options runtime "${extra_args[@]}" -s "$2" "$1")
 SIGNING_STATUS=$?
 readonly SIGNING_STATUS
 

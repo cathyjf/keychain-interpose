@@ -9,18 +9,24 @@
 # $5: Empty string or "--sign-only"
 : "${1:?}" "${2:?}" "${3:?}" "${4:?}"
 
-if [ "$5" != "--sign-only" ]; then
-    mkdir -p "$2/$1.app/Contents/MacOS"
-    (
-        set -x
-        m4 -D MY_BINARY_NAME="$1" src/meta/Info.plist.m4 > "$2/$1.app/Contents/Info.plist"
-        install -m u=rw "src/meta/profiles/keychain-interpose.provisionprofile" \
-            "$2/$1.app/Contents/embedded.provisionprofile"
-        install -m u=rwx "$2/$1" "$2/$1.app/Contents/MacOS/$1"
-    )
+magic_name="$1"
+if [[ ${magic_name} == "keychain-interpose" ]]; then
+    magic_name="migrate-keys"
 fi
 
-if [ "$4" != "--skip-signing" ]; then
+if [[ "$5" != "--sign-only" ]]; then
+    mkdir -p "$2/$1.app/Contents/MacOS"
+    m4 -D MY_BINARY_NAME="$magic_name" src/meta/Info.plist.m4 > "$2/$1.app/Contents/Info.plist"
+    install -m u=rw "src/meta/profiles/keychain-interpose.provisionprofile" \
+        "$2/$1.app/Contents/embedded.provisionprofile"
+    source="$2/$1"
+    target="$2/$1.app/Contents/MacOS/$1"
+    if [[ (-x "${source}") && (! -x "${target}") ]]; then
+        install -m u=rwx "${source}" "${target}"
+    fi
+fi
+
+if [[ "$4" != "--skip-signing" ]]; then
     SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-    "$SCRIPT_DIR/codesign.sh" "$2/$1.app" "$4" "--entitlements $3/$1-entitlements.plist"
+    "$SCRIPT_DIR/codesign.sh" "$2/$1.app" "$4" "--entitlements $3/$magic_name-entitlements.plist"
 fi

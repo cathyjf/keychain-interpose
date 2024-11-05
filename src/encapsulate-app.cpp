@@ -10,6 +10,8 @@
 #include <set>
 #include <span>
 #include <stdio.h>
+#include <sys/syslimits.h>
+#include <unistd.h>
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/regex.hpp>
@@ -66,7 +68,8 @@ auto populate_objects(const auto binary_file, auto &objects, const int depth = 1
     auto map = std::map<std::string, dylib_data>{};
     for (const auto &object : objects) {
         const auto source = std::filesystem::path{ object };
-        const auto target = destination / source.filename();
+        const auto container = (source.extension() == ".dylib" ? "Frameworks" : "MacOS");
+        const auto target = destination / container / source.filename();
         if (std::filesystem::is_regular_file(target)) {
             std::filesystem::permissions(target, std::filesystem::perms::owner_write, std::filesystem::perm_options::add);
         }
@@ -144,14 +147,67 @@ auto apply_install_name_tool_for_map(const auto &map) -> void {
 
 } // anonymous namespace
 
+class temporary_directory {
+public:
+    temporary_directory(): _path(([]() -> decltype(_path) {
+        auto buffer = std::array<char, PATH_MAX>{};
+        const auto template_path = std::filesystem::temp_directory_path() / "encapsulate-app.XXXXXXXX";
+        strcpy(buffer.data(), template_path.string().c_str());
+        if (mkdtemp(buffer.data()) == nullptr) {
+            throw std::runtime_error("failed to create temporary directory");
+        }
+        return buffer.data();
+    })()) {}
+    auto &path() const {
+        return _path;
+    }
+    auto reset() {
+        _path.clear();
+    }
+    ~temporary_directory() {
+        if (!_path.empty()) {
+            std::filesystem::remove_all(_path);
+        }
+    }
+private:
+    std::filesystem::path _path;
+};
+
+class pushd {
+public:
+    pushd(const auto path): _old_path(std::filesystem::current_path()) {
+        std::filesystem::current_path(path);
+    }
+    auto reset() {
+        if (!_old_path.empty()) {
+            std::filesystem::current_path(_old_path);
+            _old_path.clear();
+        }
+    }
+    ~pushd() {
+        reset();
+    }
+private:
+    std::filesystem::path _old_path;
+};
+
 auto main(const int argc, const char **argv) -> int {
     if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " binary_file target_dir [brew_prefix [extra_pkg1...]]" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " binary_file app_dir [brew_prefix [extra_pkg1...]]" << std::endl;
         return 1;
     }
     auto objects = std::set<std::string>{};
     const auto binary_file = std::string{ argv[1] };
-    const auto destination = std::filesystem::path{ argv[2] };
+    const auto final_destination = std::filesystem::path{ argv[2] };
+
+    auto temp = temporary_directory{};
+    auto pushd_guard = pushd{ temp.path() };
+    const auto scratch = std::filesystem::path{ "app/Contents" };
+
+    // Let's create a skeletal app bundle where we'll place the result.
+    std::filesystem::create_directories(scratch / "MacOS");
+    std::filesystem::create_directories(scratch / "Frameworks");
+    std::filesystem::create_directories(scratch / "Resources/pkg-info");
 
     std::cout << "Object tree:" << std::endl;
     populate_objects(binary_file, objects);
@@ -159,15 +215,20 @@ auto main(const int argc, const char **argv) -> int {
     if (argc >= 4) {
         std::cout << "Copying package information for:" << std::endl;
         const auto success = handle_licensing_information(objects, std::span(argv + 4, argv + argc),
-            std::filesystem::path{ argv[3] } / "opt", destination / "pkg-info");
+            std::filesystem::path{ argv[3] } / "opt", scratch / "Resources/pkg-info");
         if (!success) {
             return 1;
         }
     }
 
     std::cout << "Creating:" << std::endl;
-    const auto map = copy_objects_and_create_map(objects, destination / "bin");
+    const auto map = copy_objects_and_create_map(objects, scratch);
 
     std::cout << "Remapping:" << std::endl;
     apply_install_name_tool_for_map(map);
+
+    pushd_guard.reset();
+    std::filesystem::remove_all(final_destination);
+    std::filesystem::rename(temp.path() / "app", final_destination);
+    std::cout << "Created " << final_destination << '.' << std::endl;
 }

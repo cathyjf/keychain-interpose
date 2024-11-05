@@ -2,10 +2,10 @@
 # SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+: "${IDENTITY:?}"
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 CXX=$(src/meta/print-compiler.sh)
-LIBTOOL=$(dirname "$CXX")/llvm-libtool-darwin
-readonly SCRIPT_DIR CXX LIBTOOL
+readonly SCRIPT_DIR CXX
 
 # Print the direct and indirect descendents of the specified process or processes.
 # If more than one process is specified in $1, the list of processes must be
@@ -51,12 +51,14 @@ make_arch() {
     # shellcheck source-path=SCRIPTDIR
     source "$SCRIPT_DIR"/brew/env.sh
     echo "Using this brew for $HOMEBREW_WRAPPER_ARCH: ${brew[*]:?}."
-    if [ -z "$skip_updates" ]; then
+    if [[ -z "$skip_updates" ]]; then
         "${brew[@]:?}" update --force --quiet
         "$SCRIPT_DIR/brew/install.sh" "boost" "gnupg"
     fi
-    make CPPFLAGS_EXTRA="-arch '$HOMEBREW_WRAPPER_ARCH'" BUILD_DIR="$build_dir" \
-        CXX="$CXX" LIBTOOL="$LIBTOOL" "$@"
+    cmake -S . -B "${build_dir}" -G Ninja \
+        -D "CMAKE_CXX_COMPILER=${CXX}" \
+        -D "CMAKE_OSX_ARCHITECTURES=${HOMEBREW_WRAPPER_ARCH}"
+    cmake --build "${build_dir}"
 }
 
 is_universal() {
@@ -89,6 +91,7 @@ create_universal_binary() {
     echo "Made $1 universal."
 }
 
+# shellcheck disable=SC2120
 make_multiarch() {
     local -a pids
     make_arch "arm64" "arm64" "$@" &
@@ -104,20 +107,20 @@ make_multiarch() {
     done
 }
 
-make_multiarch clean-all
-skip_updates=1 make_multiarch
+rm -Rf universal x64 arm64
+make_multiarch
 
 while IFS= read -r -d $'\0' filename; do
     create_universal_binary "${filename}"
-done < <(find arm64/bin -print0)
-chmod -R go-rwx arm64/bin
+done < <(find arm64/keychain-interpose.app -print0)
+chmod -R go-rwx arm64/keychain-interpose.app
 
 # Sign the universal bundles.
-"$SCRIPT_DIR/codesign.sh" "arm64/bin/keychain-interpose.app/Contents/MacOS/gpg-agent.app" \
-    "${IDENTITY:?}" "--entitlements arm64/objects/gpg-agent-entitlements.plist"
-"$SCRIPT_DIR/codesign.sh" "arm64/bin/keychain-interpose.app" \
-    "${IDENTITY:?}" "--entitlements arm64/objects/migrate-keys-entitlements.plist"
+"$SCRIPT_DIR/codesign.sh" "arm64/keychain-interpose.app/Contents/MacOS/gpg-agent.app" \
+    "${IDENTITY:?}" "--entitlements arm64/gpg-agent-entitlements.plist"
+"$SCRIPT_DIR/codesign.sh" "arm64/keychain-interpose.app" \
+    "${IDENTITY:?}" "--entitlements arm64/migrate-keys-entitlements.plist"
 
-rm -Rf universal x64 arm64/objects
+rm -Rf universal x64
 mv arm64 universal
 echo "Moved \`arm64\` to \`universal\`."

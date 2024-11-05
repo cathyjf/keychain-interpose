@@ -9,7 +9,7 @@ fastfail() {
 
 source_dir=$(dirname "$(fastfail readlink -f "$0")")
 base_dir="$source_dir/../.."
-pkg_info_dir="${base_dir}/universal/bin/keychain-interpose.app/Contents/Resources/pkg-info"
+pkg_info_dir="${base_dir}/universal/keychain-interpose.app/Contents/Resources/pkg-info"
 readonly source_dir base_dir pkg_info_dir
 
 [[ -d ${pkg_info_dir} ]] || exit 1
@@ -19,7 +19,7 @@ while IFS= read -r -d $'\0' pkg; do
     packages+=( "$(basename "${pkg}")" )
 done < <(fastfail find -L "${pkg_info_dir}" -mindepth 1 -type directory -print0)
 
-target_dir="${base_dir}/universal/bin/sources"
+target_dir="${base_dir}/universal/sources"
 [[ -d ${target_dir} ]] && rm -R "${target_dir}"
 mkdir -p "${target_dir}"
 
@@ -41,7 +41,7 @@ done < <(
 
 echo "Creating archive of dependency source code:"
 zip_basename='dependency-sources.zip'
-zip_path="${base_dir}/universal/bin/${zip_basename}"
+zip_path="${base_dir}/universal/${zip_basename}"
 /usr/bin/ditto -ckV --keepParent "${target_dir}" "${zip_path}"
 rm -R "${target_dir}"
 du -sh "$(fastfail readlink -f "$zip_path")"

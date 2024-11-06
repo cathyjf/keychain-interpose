@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 : "${1:?}" "${2:?}"
 
-if [ -n "$SKIP_CODESIGN" ] && codesign -d --verbose "$1" 2>&1 | grep -q "flags=0x10000(runtime)"; then
+if [[ -n "${SKIP_CODESIGN}" ]] && codesign -d --verbose "$1" 2>&1 | grep -q "flags=0x10000(runtime)"; then
     exit
 fi
 
@@ -16,18 +16,18 @@ readonly LOCKFILE_BIN CODESIGNING_LOCKFILE
 # This function is invoked by a trap handler below.
 # shellcheck disable=SC2317
 on_exit() {
-    if [ "${SIGNING_STATUS:?}" -ne "0" ]; then
+    if [[ "${SIGNING_STATUS:?}" -ne "0" ]]; then
         rm -Rf -- "${1:?}"
     fi
     rm -f -- "${CODESIGNING_LOCKFILE:?}"
 }
 trap 'on_exit "$1"' EXIT
 
-if [ -x "$LOCKFILE_BIN" ]; then
-    "$LOCKFILE_BIN" -1 -l 10 "$CODESIGNING_LOCKFILE"
+if [[ -x "${LOCKFILE_BIN}" ]]; then
+    "${LOCKFILE_BIN}" -1 -l 10 "${CODESIGNING_LOCKFILE}"
 fi
 
-if [ -n "$SHOW_CODESIGN_EXPLANATION" ]; then
+if [[ -n "${SHOW_CODESIGN_EXPLANATION}" ]]; then
     echo
     echo "We need to sign $1 with identity $2.";
     echo "This should only be required in one of the following two cases: ";
@@ -45,4 +45,4 @@ readonly extra_args
 SIGNING_STATUS=$?
 readonly SIGNING_STATUS
 
-exit "$SIGNING_STATUS"
+exit "${SIGNING_STATUS}"

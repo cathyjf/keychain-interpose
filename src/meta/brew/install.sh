@@ -11,42 +11,42 @@ fastfail() {
 }
 
 my_arch=$(arch)
-[[ "$my_arch" == "i386" ]] && my_arch="x86_64"
-: "${HOMEBREW_WRAPPER_ARCH:=$my_arch}"
-case "$HOMEBREW_WRAPPER_ARCH" in
+[[ "${my_arch}" == "i386" ]] && my_arch="x86_64"
+: "${HOMEBREW_WRAPPER_ARCH:=${my_arch}}"
+case "${HOMEBREW_WRAPPER_ARCH}" in
     'arm64') bottle_arch='arm' tag_prefix='arm64_';;
     'x86_64' | 'i386') bottle_arch='intel' tag_prefix='';;
-    *) echo "[install] Unrecognized architecture: $HOMEBREW_WRAPPER_ARCH" 1>&2; exit 1
+    *) echo "[install] Unrecognized architecture: ${HOMEBREW_WRAPPER_ARCH}" 1>&2; exit 1
 esac
 
 script_dir="$(dirname "$(readlink -f "$0")")"
 # shellcheck source-path=SCRIPTDIR
-source "$script_dir/env.sh"
+source "${script_dir}/env.sh"
 
 packages=()
 for i in "${@}"; do
     # shellcheck disable=SC2207
-    IFS=$'\n' packages+=( "$i" $("${brew[@]:?}" deps "$i") )
+    IFS=$'\n' packages+=( "${i}" $("${brew[@]:?}" deps "${i}") )
 done
 # shellcheck disable=SC2207
 IFS=$'\n' packages=( $(echo "${packages[@]}" | tr ' ' '\n' | sort | uniq) )
 
 upgrade_info=$(mktemp)
-"${brew[@]:?}" upgrade -n "${packages[@]}" 1>/dev/null 2>"$upgrade_info" || true
+"${brew[@]:?}" upgrade -n "${packages[@]}" 1>/dev/null 2>"${upgrade_info}" || true
 skipped_packages=""
 for i in "${!packages[@]}"; do
-    if ! match=$(grep -w "${packages[$i]}" "$upgrade_info"); then
+    if ! match=$(grep -w "${packages[${i}]}" "${upgrade_info}"); then
         continue
-    elif grep -q "already installed" < <(echo "$match"); then
-        skipped_packages+=", ${packages[$i]}"
-        unset "packages[$i]"
+    elif grep -q "already installed" < <(echo "${match}"); then
+        skipped_packages+=", ${packages[${i}]}"
+        unset "packages[${i}]"
     fi
 done
 
-if [ -n "$skipped_packages" ]; then
-    echo "[$bottle_arch] No need to install or upgrade these packages: ${skipped_packages:2}."
+if [[ -n "${skipped_packages}" ]]; then
+    echo "[${bottle_arch}] No need to install or upgrade these packages: ${skipped_packages:2}."
 fi
-if [ "${#packages[@]}" -eq "0" ]; then
+if [[ "${#packages[@]}" -eq "0" ]]; then
     # No packages to install or upgrade.
     exit 0
 fi
@@ -61,16 +61,16 @@ fi
 valid_tags=( "${tag_prefix}sequoia" "${tag_prefix}sonoma" "${tag_prefix}ventura" )
 declare -A installable
 while IFS=':' read -r package tag; do
-    candidate=${installable[$package]:-}
+    candidate=${installable[${package}]:-}
     if [[ -z ${candidate} ]]; then
-        installable[$package]=${tag}
+        installable[${package}]=${tag}
         continue
     fi
     for i in "${valid_tags[@]}"; do
         if [[ ${i} == "${candidate}" ]]; then
             break
         elif [[ ${i} == "${tag}" ]]; then
-            installable[$package]=${tag}
+            installable[${package}]=${tag}
             break
         fi
     done
@@ -82,7 +82,7 @@ done < <(
 for i in "${valid_tags[@]}"; do
     formulae=()
     for j in "${!installable[@]}"; do
-        if [[ ${i} == "${installable[$j]}" ]]; then
+        if [[ ${i} == "${installable[${j}]}" ]]; then
             formulae+=( "${j}" )
         fi
     done
@@ -91,9 +91,9 @@ for i in "${valid_tags[@]}"; do
     fi
 
     # Now, let's install the formulae whose bottles have this tag.
-    "${brew[@]:?}" fetch -q --force --bottle-tag "$i" "${formulae[@]}"
+    "${brew[@]:?}" fetch -q --force --bottle-tag "${i}" "${formulae[@]}"
     # shellcheck disable=SC2207
-    IFS=$'\n' bottles=( $("${brew[@]:?}" --cache --bottle-tag "$i" "${formulae[@]}") )
+    IFS=$'\n' bottles=( $("${brew[@]:?}" --cache --bottle-tag "${i}" "${formulae[@]}") )
     echo "*** Please ignore the following message about \`--ignore-dependencies\`."
     echo "*** The \`--ignore-dependencies\` option is needed to use brew as a cross-compilation tool."
     "${brew[@]:?}" install --ignore-dependencies --force-bottle "${bottles[@]}"

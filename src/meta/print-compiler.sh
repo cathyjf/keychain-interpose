@@ -20,8 +20,8 @@ if ! brew bundle check "${brew_bundle_args[@]}" 1>&2 <<< "${brewfile_text}"; the
 fi
 
 BREW_CLANG="$(brew --prefix 2>/dev/null || true)/opt/llvm/bin/clang++"
-if [[ -x "$BREW_CLANG" ]]; then
-    echo -n "$BREW_CLANG"
+if [[ -x "${BREW_CLANG}" ]]; then
+    echo -n "${BREW_CLANG}"
 else
     printf \\n"**** Homebrew's version of clang (llvm) is required to compile this program. ****"\\n\\n 1>&2
     printf "To obtain Homebrew's version of clang, install Homebrew and then run:"\\n 1>&2

@@ -2,7 +2,6 @@
 # SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-: "${IDENTITY:?}"
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 CXX=$(src/meta/print-compiler.sh)
 readonly SCRIPT_DIR CXX
@@ -116,6 +115,7 @@ done < <(find arm64/keychain-interpose.app -print0)
 chmod -R go-rwx arm64/keychain-interpose.app
 
 # Sign the universal bundles.
+: "${IDENTITY:="$(cmake -L -N arm64 | grep '^IDENTITY:STRING=' | cut -d '=' -f 2-)"}"
 "${SCRIPT_DIR}/codesign.sh" "arm64/keychain-interpose.app/Contents/MacOS/gpg-agent.app" \
     "${IDENTITY:?}" "--entitlements arm64/gpg-agent-entitlements.plist"
 "${SCRIPT_DIR}/codesign.sh" "arm64/keychain-interpose.app" \

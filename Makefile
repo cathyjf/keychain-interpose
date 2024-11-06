@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-IDENTITY := Developer ID Application: Cathy Fitzpatrick (KVRBCYNMT7)
 NOTARY_KEYCHAIN_PROFILE := cathyjf
 
 default :
@@ -9,7 +8,7 @@ default :
 	cmake --build build
 
 all universal universal/keychain-interpose.app :
-	IDENTITY="$(IDENTITY)" src/meta/make-universal.sh
+	src/meta/make-universal.sh
 
 notarize : universal/keychain-interpose.app
 	NOTARY_KEYCHAIN_PROFILE="$(NOTARY_KEYCHAIN_PROFILE)" src/meta/notarize-app.sh "$<"

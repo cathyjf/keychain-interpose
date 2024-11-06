@@ -9,8 +9,10 @@ set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -flto -Wall -Werror")
 set(CMAKE_OBJCXX_FLAGS "${CMAKE_OBJCXX_FLAGS} -fobjc-arc")
 
-set(TEAM_ID "KVRBCYNMT7")
-set(IDENTITY "Developer ID Application: Cathy Fitzpatrick (KVRBCYNMT7)")
+set(TEAM_ID "KVRBCYNMT7"
+    CACHE STRING "Team ID used for code signing.")
+set(IDENTITY "Developer ID Application: Cathy Fitzpatrick (${TEAM_ID})"
+    CACHE STRING "Developer ID used for code signing.")
 set(CODESIGN "${CMAKE_CURRENT_SOURCE_DIR}/src/meta/codesign.sh")
 set(MAKE_BUNDLE "${CMAKE_CURRENT_SOURCE_DIR}/src/meta/make-bundle.sh")
 set(MAIN_APP_BUNDLE "${CMAKE_BINARY_DIR}/keychain-interpose.app")

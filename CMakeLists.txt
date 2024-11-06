@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -flto -Wall -Werror")
-set(CMAKE_OBJCXX_FLAGS "${CMAKE_OBJC_FLAGS} -fobjc-arc")
+set(CMAKE_OBJCXX_FLAGS "${CMAKE_OBJCXX_FLAGS} -fobjc-arc")
 
 set(TEAM_ID "KVRBCYNMT7")
 set(IDENTITY "Developer ID Application: Cathy Fitzpatrick (KVRBCYNMT7)")
@@ -50,12 +50,14 @@ target_include_directories(cfpp PUBLIC "dependencies/libCF++/CF++/include")
 add_library(keychain-interpose-common OBJECT)
 target_sources(keychain-interpose-common PUBLIC FILE_SET CXX_MODULES FILES
     "src/modules/cathyjf.ki.common.cppm")
-find_library(CORE_FOUNDATION_F CoreFoundation REQUIRED)
-find_library(SECURITY_F Security REQUIRED)
-target_link_libraries(keychain-interpose-common
-    PUBLIC cfpp
-    PUBLIC ${CORE_FOUNDATION_F}
-    PUBLIC ${SECURITY_F})
+block()
+    find_library(CORE_FOUNDATION_F CoreFoundation REQUIRED)
+    find_library(SECURITY_F Security REQUIRED)
+    target_link_libraries(keychain-interpose-common
+        PUBLIC cfpp
+        PUBLIC ${CORE_FOUNDATION_F}
+        PUBLIC ${SECURITY_F})
+endblock()
 
 ###############################################################################
 # encapsulate-app
@@ -75,26 +77,28 @@ set(AGENT_FRAMEWORKS "${AGENT_APP_BUNDLE}/Contents/Frameworks")
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GPG_ERROR REQUIRED gpg-error)
-get_filename_component(libgpg_error_realpath
-    "${GPG_ERROR_LIBRARY_DIRS}/lib${GPG_ERROR_LIBRARIES}.dylib" REALPATH)
-get_filename_component(libgpg_error_filename ${libgpg_error_realpath} NAME)
-set(AGENT_LIBGPG_ERROR "${AGENT_FRAMEWORKS}/${libgpg_error_filename}")
+block(PROPAGATE AGENT_LIBGPG_ERROR)
+    get_filename_component(libgpg_error_realpath
+        "${GPG_ERROR_LIBRARY_DIRS}/lib${GPG_ERROR_LIBRARIES}.dylib" REALPATH)
+    get_filename_component(libgpg_error_filename ${libgpg_error_realpath} NAME)
+    set(AGENT_LIBGPG_ERROR "${AGENT_FRAMEWORKS}/${libgpg_error_filename}")
+endblock()
 
 add_custom_command(
     OUTPUT
         ${AGENT_APP_BUNDLE}
         ${AGENT_LIBGPG_ERROR}
     COMMAND /bin/bash ARGS -c
-        [=[
+        [[
         "$1" "$(brew --prefix gnupg)"/bin/gpg-agent "$2" "$(brew --prefix)" boost
-        ]=]
+        ]]
         "shell"
         $<TARGET_FILE:encapsulate-app>
         ${AGENT_APP_BUNDLE}
     COMMAND /bin/bash ARGS -c
-        [=[
+        [[
         find "$1" -name '*.dylib' -print0 | xargs -0 -I{} "$2" "{}" "$3"
-        ]=]
+        ]]
         "shell"
         ${AGENT_FRAMEWORKS}
         ${CODESIGN}
@@ -124,9 +128,7 @@ set_property(TARGET gpg-agent_target APPEND
 function(generate_entitlements name)
     add_custom_command(OUTPUT "${name}.plist"
         COMMAND /bin/bash ARGS -c
-            [=[
-            m4 -D "$1" "${@:4}" < "$2" > "$3"
-            ]=]
+            [[ m4 -D "$1" "${@:4}" < "$2" > "$3" ]]
             "shell"
             "MY_TEAM_ID=${TEAM_ID}"
             "${CMAKE_CURRENT_SOURCE_DIR}/src/meta/entitlements.plist.m4"
@@ -158,17 +160,19 @@ endfunction()
 add_executable(migrate-keys
     "src/migrate-keys.cpp"
     "src/migrate-keys-helper.mm")
-find_library(LOCAL_AUTHENTICATION_F LocalAuthentication REQUIRED)
-find_library(FOUNDATION_F Foundation REQUIRED)
-find_library(CORE_SERVICES_F CoreServices REQUIRED)
-find_library(APPKIT_F AppKit REQUIRED)
-target_link_libraries(migrate-keys
-    PRIVATE keychain-interpose-common
-    PRIVATE Boost::program_options
-    PRIVATE ${LOCAL_AUTHENTICATION_F}
-    PRIVATE ${FOUNDATION_F}
-    PRIVATE ${CORE_SERVICES_F}
-    PRIVATE ${APPKIT_F})
+block()
+    find_library(LOCAL_AUTHENTICATION_F LocalAuthentication REQUIRED)
+    find_library(FOUNDATION_F Foundation REQUIRED)
+    find_library(CORE_SERVICES_F CoreServices REQUIRED)
+    find_library(APPKIT_F AppKit REQUIRED)
+    target_link_libraries(migrate-keys
+        PRIVATE keychain-interpose-common
+        PRIVATE Boost::program_options
+        PRIVATE ${LOCAL_AUTHENTICATION_F}
+        PRIVATE ${FOUNDATION_F}
+        PRIVATE ${CORE_SERVICES_F}
+        PRIVATE ${APPKIT_F})
+endblock()
 
 ###############################################################################
 # pinentry-wrapper

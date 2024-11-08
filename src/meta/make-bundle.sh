@@ -17,8 +17,10 @@ fi
 if [[ "$5" != "--sign-only" ]]; then
     mkdir -p "$2/$1.app/Contents/MacOS"
     m4 -D MY_BINARY_NAME="${magic_name}" src/meta/Info.plist.m4 > "$2/$1.app/Contents/Info.plist"
-    install -m u=rw "src/meta/profiles/keychain-interpose.provisionprofile" \
-        "$2/$1.app/Contents/embedded.provisionprofile"
+
+    readonly profile_path="$3/keychain-interpose.provisionprofile"
+    [[ -f ${profile_path} ]]
+    install -m u=rw "${profile_path}" "$2/$1.app/Contents/embedded.provisionprofile"
     source="$2/$1"
     target="$2/$1.app/Contents/MacOS/$1"
     if [[ (-x "${source}") && (! -x "${target}") ]]; then

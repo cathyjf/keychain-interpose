@@ -71,6 +71,24 @@ target_link_libraries(encapsulate-app
     PRIVATE Boost::regex)
 
 ###############################################################################
+# provisionprofile_target
+
+add_custom_command(
+    OUTPUT
+        "keychain-interpose.provisionprofile"
+    COMMAND /usr/bin/base64 ARGS -d
+        -i "src/meta/profiles/keychain-interpose.provisionprofile.base64"
+        -o "${CMAKE_BINARY_DIR}/keychain-interpose.provisionprofile"
+    DEPENDS
+        "src/meta/profiles/keychain-interpose.provisionprofile.base64"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    VERBATIM
+)
+
+add_custom_target("provisionprofile_target" DEPENDS
+    "keychain-interpose.provisionprofile")
+
+###############################################################################
 # gpg-agent.app
 
 set(AGENT_APP_BUNDLE_PARENT "${MAIN_APP_BUNDLE}/Contents/MacOS")
@@ -90,6 +108,7 @@ add_custom_command(
     OUTPUT
         ${AGENT_APP_BUNDLE}
         ${AGENT_LIBGPG_ERROR}
+        "${AGENT_APP_BUNDLE}/Contents/embedded.provisionprofile"
     COMMAND /bin/bash ARGS -c
         [[
         "$1" "$(brew --prefix gnupg)"/bin/gpg-agent "$2" "$(brew --prefix)" boost
@@ -113,8 +132,9 @@ add_custom_command(
     DEPENDS
         ${MAKE_BUNDLE}
         "gpg-agent-entitlements"
+        "keychain-interpose.provisionprofile"
+        "provisionprofile_target"
         "src/meta/Info.plist.m4"
-        "src/meta/profiles/keychain-interpose.provisionprofile"
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     VERBATIM
 )
@@ -206,6 +226,7 @@ add_custom_command(
     OUTPUT
         "${MAIN_APP_BUNDLE}/Contents/Info.plist"
         "${MAIN_APP_BUNDLE}/Contents/_CodeSignature/CodeResources"
+        "${MAIN_APP_BUNDLE}/Contents/embedded.provisionprofile"
     COMMAND /usr/bin/install ARGS
         -m u=rx
         $<TARGET_FILE:migrate-keys>
@@ -232,15 +253,15 @@ add_custom_command(
         ${IDENTITY}
     DEPENDS
         ${MAKE_BUNDLE}
+        "keychain-interpose.provisionprofile"
+        "provisionprofile_target"
         "keychain-interpose"
         "migrate-keys"
         "migrate-keys-entitlements"
         "pinentry-wrapper"
         "gpg-agent_target"
-        "src/meta/Info.plist.m4"
-        "src/meta/make-bundle.sh"
-        "src/meta/profiles/keychain-interpose.provisionprofile"
         "README.md"
+        "src/meta/Info.plist.m4"
         "src/resources/gpg-keychain-agent.sh"
         "src/resources/help-message.sh"
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

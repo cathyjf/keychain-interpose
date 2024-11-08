@@ -22,7 +22,7 @@ if(NOT CMAKE_CXX_COMPILER)
     # modules. Apple's Clang does not currently support the standard version
     # of modules.
     execute_process(
-        COMMAND "src/meta/print-compiler.sh"
+        COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/src/meta/print-compiler.sh"
         OUTPUT_VARIABLE CMAKE_CXX_COMPILER)
 endif()
 

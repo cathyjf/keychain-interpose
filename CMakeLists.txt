@@ -204,6 +204,22 @@ add_executable(pinentry-wrapper
 target_codesign(pinentry-wrapper)
 
 ###############################################################################
+# dependency-sources.zip
+
+add_custom_command(
+    OUTPUT
+        "dependency-sources.zip"
+        "dependency-sources.zip.txt"
+    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/src/meta/download-source.sh" ARGS
+        ${CMAKE_BINARY_DIR}
+    VERBATIM
+    USES_TERMINAL
+)
+
+add_custom_target("dependency-sources"
+    DEPENDS "dependency-sources.zip" "dependency-sources.zip.txt")
+
+###############################################################################
 # keychain-interpose.app
 
 add_library(keychain-interpose SHARED "src/keychain-interpose.cpp")

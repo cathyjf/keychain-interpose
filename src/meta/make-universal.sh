@@ -122,5 +122,5 @@ chmod -R go-rwx arm64/keychain-interpose.app
     "${IDENTITY:?}" "--entitlements arm64/migrate-keys-entitlements.plist"
 
 rm -Rf universal x64
-mv arm64 universal
-echo "Moved \`arm64\` to \`universal\`."
+ln -f -s arm64 universal
+echo "Symlinked \`arm64\` to \`universal\`."

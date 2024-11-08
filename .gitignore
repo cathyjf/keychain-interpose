@@ -2,9 +2,8 @@
 .DS_Store
 .homebrew
 .vscode
-bin
+arm64
 build
-objects
 universal
 
 testing/*.log

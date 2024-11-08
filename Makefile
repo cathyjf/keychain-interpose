@@ -15,8 +15,11 @@ notarize : universal/keychain-interpose.app
 
 release : universal/keychain-interpose.app
 	@make notarize
-	src/meta/download-source.sh
+	@cmake --build "$(<D)" --target dependency-sources
 	/usr/bin/ditto -ck --keepParent "$<" "$<.zip"
+
+upload : release
+	src/meta/upload-to-github.sh
 
 clean clean-all :
 	rm -Rf arm64 build universal x86
@@ -31,4 +34,4 @@ shellcheck :
 
 .DELETE_ON_ERROR :
 
-.PHONY : all clean clean-all default release test shellcheck notarize
+.PHONY : all clean clean-all default notarize release shellcheck test upload

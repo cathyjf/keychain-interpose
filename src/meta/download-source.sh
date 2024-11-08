@@ -1,15 +1,21 @@
-#!/bin/bash -efu
+#!/usr/bin/env bash
 # SPDX-FileCopyrightText: Copyright 2023 Cathy J. Fitzpatrick <cathy@cathyjf.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
+set -efuC -o pipefail
 set -o pipefail
 
 fastfail() {
     "$@" || kill -- "-$$"
 }
 
-source_dir=$(dirname "$(fastfail readlink -f "$0")")
-base_dir="${source_dir}/../.."
-pkg_info_dir="${base_dir}/universal/keychain-interpose.app/Contents/Resources/pkg-info"
+if [[ -d "${1:-}" ]]; then
+    base_dir=${1}
+else
+    source_dir=$(dirname "$(fastfail readlink -f "$0")")
+    base_dir="${source_dir}/../../universal"
+fi
+
+pkg_info_dir="${base_dir}/keychain-interpose.app/Contents/Resources/pkg-info"
 readonly source_dir base_dir pkg_info_dir
 
 [[ -d ${pkg_info_dir} ]] || exit 1
@@ -19,7 +25,7 @@ while IFS= read -r -d $'\0' pkg; do
     packages+=( "$(basename "${pkg}")" )
 done < <(fastfail find -L "${pkg_info_dir}" -mindepth 1 -type directory -print0)
 
-target_dir="${base_dir}/universal/sources"
+target_dir="${base_dir}/sources"
 [[ -d ${target_dir} ]] && rm -R "${target_dir}"
 mkdir -p "${target_dir}"
 
@@ -39,11 +45,14 @@ done < <(
     fastfail brew info --json "${packages[@]}" | \
         fastfail yq '.[] | (.name + ":" + .versions.stable + ":" + .urls.stable.url)')
 
+# Remove the final newline from ${release_message}.
+release_message="${release_message::-1}"
+
 echo "Creating archive of dependency source code:"
 zip_basename='dependency-sources.zip'
-zip_path="${base_dir}/universal/${zip_basename}"
+zip_path="${base_dir}/${zip_basename}"
 /usr/bin/ditto -ckV --keepParent "${target_dir}" "${zip_path}"
 rm -R "${target_dir}"
 du -sh "$(fastfail readlink -f "${zip_path}")"
 echo "The ${zip_basename} file contains the source code of the following packages:"
-sort <(echo -n "${release_message}")
+echo -n "${release_message}" | sort | tee "${zip_path}.txt"

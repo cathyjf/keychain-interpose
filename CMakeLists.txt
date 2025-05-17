@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -flto -Wall -Werror")
 set(CMAKE_OBJCXX_FLAGS "${CMAKE_OBJCXX_FLAGS} -fobjc-arc")
+set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/src/meta/cmake/toolchain.cmake")
 
 set(TEAM_ID "KVRBCYNMT7"
     CACHE STRING "Team ID used for code signing.")
@@ -16,20 +17,6 @@ set(IDENTITY "Developer ID Application: Cathy Fitzpatrick (${TEAM_ID})"
 set(CODESIGN "${CMAKE_CURRENT_SOURCE_DIR}/src/meta/codesign.sh")
 set(MAKE_BUNDLE "${CMAKE_CURRENT_SOURCE_DIR}/src/meta/make-bundle.sh")
 set(MAIN_APP_BUNDLE "${CMAKE_BINARY_DIR}/keychain-interpose.app")
-
-if(NOT CMAKE_CXX_COMPILER)
-    # Homebrew's version of Clang is required because we use C++ standard
-    # modules. Apple's Clang does not currently support the standard version
-    # of modules.
-    execute_process(
-        COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/src/meta/print-compiler.sh"
-        OUTPUT_VARIABLE CMAKE_CXX_COMPILER)
-endif()
-
-# For consistency, we need to use the `ar` binary that comes with the version
-# of Clang that we're using.
-get_filename_component(CLANG_CXX_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
-set(CMAKE_AR "${CLANG_CXX_DIR}/llvm-ar")
 
 project(keychain-interpose LANGUAGES CXX OBJCXX)
 

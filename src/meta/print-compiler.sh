@@ -12,7 +12,7 @@ read -r -d '' brewfile_text << 'BREWFILE_END' || true
     brew "wget"
     brew "yq"
 BREWFILE_END
-brew_bundle_args=( --no-upgrade --no-lock --quiet --file - )
+brew_bundle_args=( --no-upgrade --quiet --file - )
 
 export HOMEBREW_NO_AUTO_UPDATE=1
 if ! brew bundle check "${brew_bundle_args[@]}" 1>&2 <<< "${brewfile_text}"; then

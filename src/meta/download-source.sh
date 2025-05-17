@@ -28,6 +28,7 @@ target_dir="${base_dir}/sources"
 [[ -d ${target_dir} ]] && rm -R "${target_dir}"
 mkdir -p "${target_dir}"
 
+declare -a jobs
 release_message=''
 echo "Downloading source code of dependencies:"
 while IFS=':' read -r pkg version uri; do
@@ -37,12 +38,19 @@ while IFS=':' read -r pkg version uri; do
         filename_basename="${pkg}-${filename_basename}"
     fi
     filename="${target_dir}/${filename_basename}"
-    wget --quiet "${uri}" -O "${filename}"
-    du -sh "$(fastfail readlink -f "${filename}")"
     release_message+="- ${pkg}-${version}"$'\n'
+    (
+        wget --quiet "${uri}" -O "${filename}"
+        du -sh "$(fastfail readlink -f "${filename}")"
+    ) &
+    jobs+=( "${!}" )
 done < <(
     fastfail brew info --json "${packages[@]}" | \
         fastfail yq '.[] | (.name + ":" + .versions.stable + ":" + .urls.stable.url)')
+
+for job_id in "${jobs[@]}"; do
+    wait "${job_id}"
+done
 
 # Remove the final newline from ${release_message}.
 release_message="${release_message::-1}"

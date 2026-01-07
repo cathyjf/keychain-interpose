@@ -58,7 +58,7 @@ fi
 #
 # To solve this problem, we first need to figure out which bottles are
 # available for each formula that we plan to install.
-valid_tags=( "${tag_prefix}sequoia" "${tag_prefix}sonoma" "${tag_prefix}ventura" )
+valid_tags=( "${tag_prefix}tahoe" "${tag_prefix}sequoia" "${tag_prefix}sonoma" "${tag_prefix}ventura" )
 declare -A installable
 while IFS=':' read -r package tag; do
     candidate=${installable[${package}]:-}
@@ -96,5 +96,8 @@ for i in "${valid_tags[@]}"; do
     IFS=$'\n' bottles=( $("${brew[@]:?}" --cache --bottle-tag "${i}" "${formulae[@]}") )
     echo "*** Please ignore the following message about \`--ignore-dependencies\`."
     echo "*** The \`--ignore-dependencies\` option is needed to use brew as a cross-compilation tool."
-    "${brew[@]:?}" install --ignore-dependencies --force-bottle "${bottles[@]}"
+    # For background on why we set HOMEBREW_DEVELOPER=1, see the following links:
+    #     - https://github.com/Homebrew/brew/pull/20414
+    #     - https://github.com/Homebrew/brew/issues/20441
+    HOMEBREW_DEVELOPER=1 "${brew[@]:?}" install --ignore-dependencies --force-bottle "${bottles[@]}"
 done
